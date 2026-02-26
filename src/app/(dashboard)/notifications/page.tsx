@@ -21,7 +21,9 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HabitReminder, ReminderFrequency } from '@/types'
-import { mockHabits } from '@/lib/mockData'
+import { useAuth } from '@/components/AuthProvider'
+import { getHabits } from '@/lib/db'
+import type { Habit } from '@/types'
 import {
   getReminders,
   saveReminder,
@@ -47,6 +49,8 @@ const FREQUENCY_OPTIONS: { value: ReminderFrequency; label: string; desc: string
 ]
 
 export default function NotificationsPage() {
+  const { user } = useAuth()
+  const [habits, setHabitsData] = useState<Habit[]>([])
   const [reminders, setReminders] = useState<HabitReminder[]>([])
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [showAdd, setShowAdd] = useState(false)
@@ -70,7 +74,11 @@ export default function NotificationsPage() {
   useEffect(() => {
     setPermission(getPermissionStatus())
     refresh()
-  }, [refresh])
+    // Load habits from DB
+    if (user) {
+      getHabits(user.id).then(setHabitsData)
+    }
+  }, [refresh, user])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -93,7 +101,7 @@ export default function NotificationsPage() {
       showToast('Please select a habit first')
       return
     }
-    const habit = mockHabits.find(h => h.id === newHabitId)
+    const habit = habits.find(h => h.id === newHabitId)
     if (!habit) return
 
     // Check if reminder already exists for this habit
@@ -151,7 +159,7 @@ export default function NotificationsPage() {
     showToast('Test notification sent!')
   }
 
-  const habitsWithoutReminder = mockHabits.filter(
+  const habitsWithoutReminder = habits.filter(
     h => h.is_active && !reminders.some(r => r.habit_id === h.id)
   )
 
@@ -174,11 +182,11 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <BellRing className="text-brand-500" size={28} />
             Notifications & Reminders
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Set up smart reminders to never miss your habits. Your brain needs consistent cues!
           </p>
         </div>
@@ -246,25 +254,25 @@ export default function NotificationsPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
           <p className="text-2xl font-bold text-brand-600">{reminders.filter(r => r.enabled).length}</p>
-          <p className="text-xs text-slate-500 mt-1">Active Reminders</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Active Reminders</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
           <p className="text-2xl font-bold text-accent-600">{reminders.length}</p>
-          <p className="text-xs text-slate-500 mt-1">Total Reminders</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Reminders</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
           <p className="text-2xl font-bold text-orange-500">{recentNotifs}</p>
-          <p className="text-xs text-slate-500 mt-1">Notifications Sent</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Notifications Sent</p>
         </div>
       </div>
 
       {/* Existing Reminders */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-700">Your Reminders</h2>
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200">Your Reminders</h2>
           <button
             onClick={() => setShowAdd(!showAdd)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
@@ -275,10 +283,10 @@ export default function NotificationsPage() {
         </div>
 
         {reminders.length === 0 && !showAdd && (
-          <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center">
-            <Clock size={40} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-500 font-medium">No reminders set up yet</p>
-            <p className="text-slate-400 text-sm mt-1">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center">
+            <Clock size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+            <p className="text-slate-500 dark:text-slate-400 font-medium">No reminders set up yet</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
               Add reminders for your habits to stay on track
             </p>
             <button
@@ -296,8 +304,8 @@ export default function NotificationsPage() {
             key={rem.id}
             layout
             className={cn(
-              'bg-white rounded-xl border overflow-hidden transition-colors',
-              rem.enabled ? 'border-slate-200' : 'border-slate-100 opacity-60'
+              'bg-white dark:bg-slate-900 rounded-xl border overflow-hidden transition-colors',
+              rem.enabled ? 'border-slate-200 dark:border-slate-800' : 'border-slate-100 dark:border-slate-800 opacity-60'
             )}
           >
             {/* Summary Row */}
@@ -314,8 +322,8 @@ export default function NotificationsPage() {
                 {rem.enabled ? <Power size={18} /> : <PowerOff size={18} />}
               </button>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-800 truncate">{rem.habit_title}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{rem.habit_title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {FREQUENCY_OPTIONS.find(f => f.value === rem.frequency)?.label || rem.frequency}
                   {' · '}
                   {rem.start_time} – {rem.end_time}
@@ -354,11 +362,11 @@ export default function NotificationsPage() {
                   exit={{ height: 0, opacity: 0 }}
                   className="border-t border-slate-100"
                 >
-                  <div className="p-4 space-y-4 bg-slate-50">
+                  <div className="p-4 space-y-4 bg-slate-50 dark:bg-slate-800/50">
                     {/* Frequency */}
                     <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1 block">Frequency</label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Frequency</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {FREQUENCY_OPTIONS.map(opt => (
                           <button
                             key={opt.value}
@@ -366,8 +374,8 @@ export default function NotificationsPage() {
                             className={cn(
                               'px-3 py-2 rounded-lg text-xs font-medium border transition',
                               rem.frequency === opt.value
-                                ? 'bg-brand-50 border-brand-300 text-brand-700'
-                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-400'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
                             )}
                           >
                             {opt.label}
@@ -415,7 +423,7 @@ export default function NotificationsPage() {
                     {/* Days */}
                     <div>
                       <label className="text-xs font-medium text-slate-600 mb-1 block">Active Days</label>
-                      <div className="flex gap-1.5">
+                      <div className="flex flex-wrap gap-1.5">
                         {DAYS.map((day, i) => (
                           <button
                             key={day}
@@ -428,10 +436,10 @@ export default function NotificationsPage() {
                               }
                             }}
                             className={cn(
-                              'w-10 h-10 rounded-full text-xs font-medium transition',
+                              'w-9 h-9 sm:w-10 sm:h-10 rounded-full text-xs font-medium transition',
                               rem.days_of_week.includes(i)
                                 ? 'bg-brand-500 text-white'
-                                : 'bg-white border border-slate-200 text-slate-500 hover:border-brand-300'
+                                : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-brand-300'
                             )}
                           >
                             {day}
@@ -454,21 +462,21 @@ export default function NotificationsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="bg-white rounded-xl border border-brand-200 p-5 space-y-4"
+            className="bg-white dark:bg-slate-900 rounded-xl border border-brand-200 dark:border-brand-800 p-4 sm:p-5 space-y-4"
           >
-            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Plus size={18} className="text-brand-500" />
               New Reminder
             </h3>
 
             {/* Habit Select */}
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Select Habit</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Select Habit</label>
               {habitsWithoutReminder.length > 0 ? (
                 <select
                   value={newHabitId}
                   onChange={(e) => setNewHabitId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 dark:text-slate-200"
                 >
                   <option value="">Choose a habit...</option>
                   {habitsWithoutReminder.map(h => (
@@ -482,8 +490,8 @@ export default function NotificationsPage() {
 
             {/* Frequency */}
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">How often?</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">How often?</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {FREQUENCY_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
@@ -491,12 +499,12 @@ export default function NotificationsPage() {
                     className={cn(
                       'px-3 py-2.5 rounded-lg text-xs font-medium border transition text-left',
                       newFreq === opt.value
-                        ? 'bg-brand-50 border-brand-300 text-brand-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-400'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
                     )}
                   >
                     <span className="block">{opt.label}</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">{opt.desc}</span>
+                    <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{opt.desc}</span>
                   </button>
                 ))}
               </div>
@@ -540,8 +548,8 @@ export default function NotificationsPage() {
 
             {/* Days */}
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-2 block">Which days?</label>
-              <div className="flex gap-1.5">
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2 block">Which days?</label>
+              <div className="flex flex-wrap gap-1.5">
                 {DAYS.map((day, i) => (
                   <button
                     key={day}
@@ -551,10 +559,10 @@ export default function NotificationsPage() {
                       )
                     }}
                     className={cn(
-                      'w-10 h-10 rounded-full text-xs font-medium transition',
+                      'w-9 h-9 sm:w-10 sm:h-10 rounded-full text-xs font-medium transition',
                       newDays.includes(i)
                         ? 'bg-brand-500 text-white'
-                        : 'bg-white border border-slate-200 text-slate-500 hover:border-brand-300'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-brand-300'
                     )}
                   >
                     {day}
@@ -584,12 +592,12 @@ export default function NotificationsPage() {
       </AnimatePresence>
 
       {/* Science Info Box */}
-      <div className="bg-gradient-to-br from-accent-50 to-brand-50 rounded-xl border border-accent-200 p-5">
-        <h3 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
+      <div className="bg-gradient-to-br from-accent-50 to-brand-50 dark:from-accent-950/30 dark:to-brand-950/30 rounded-xl border border-accent-200 dark:border-accent-800 p-4 sm:p-5">
+        <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-sm">
           <AlertCircle size={16} className="text-accent-500" />
           The Science of Reminders
         </h3>
-        <div className="mt-3 space-y-2 text-xs text-slate-600">
+        <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
           <p>
             <strong>Cue-Routine-Reward:</strong> Reminders act as external cues in the habit loop.
             Over time, your brain learns to associate the cue with the behavior automatically.

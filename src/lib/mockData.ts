@@ -157,9 +157,9 @@ export const mockUserBadges: UserBadge[] = [
 ]
 
 export const mockVideos: Video[] = [
-  { id: 'v-1', youtube_id: 'dQw4w9WgXcQ', title: 'The Science of Habit Formation', summary: 'Learn how neural pathways form habits through the cue-routine-reward loop.', habit_category: 'mindset', trigger_type: 'default', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'v-2', youtube_id: 'dQw4w9WgXcQ', title: 'Why Streaks Matter for Your Brain', summary: 'Discover how dopamine reinforcement strengthens habit loops.', habit_category: 'fitness', trigger_type: 'default', created_at: '2026-01-05T00:00:00Z' },
-  { id: 'v-3', youtube_id: 'dQw4w9WgXcQ', title: 'The 21-Day Myth: What Research Really Says', summary: 'The truth behind habit formation timelines and neuroplasticity.', habit_category: 'study', trigger_type: 'default', created_at: '2026-01-10T00:00:00Z' },
+  { id: 'v-1', youtube_id: 'Wcs2PFz5q6g', title: 'The Science of Making & Breaking Habits', summary: 'Andrew Huberman explains the neuroscience behind how habits form, how to build good ones, and how to break bad ones.', habit_category: 'mindset', trigger_type: 'default', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'v-2', youtube_id: 'fHBR1j1kJ1I', title: "Billionaire's Brain vs Your Brain: Morning Routine, Focus & Addiction", summary: 'Dr. Sweta breaks down morning routines, focus strategies, and addiction science that separate high performers from the rest.', habit_category: 'fitness', trigger_type: 'default', created_at: '2026-01-05T00:00:00Z' },
+  { id: 'v-3', youtube_id: 'TIwBwyMgS50', title: 'Small Steps, Big Changes — The Power of Habits', summary: 'A TEDx talk by Saurabh Bothra on how small consistent habit changes lead to transformative life results.', habit_category: 'study', trigger_type: 'default', created_at: '2026-01-10T00:00:00Z' },
 ]
 
 // Helper to get logs for a specific habit

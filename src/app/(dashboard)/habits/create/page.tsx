@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Beaker, ArrowLeft, Plus, X, Sparkles } from 'lucide-react'
 import Link from 'next/link'
+import { createHabit } from '@/lib/db'
+import { useAuth } from '@/components/AuthProvider'
+import type { HabitCategory } from '@/types'
 
 const categories = [
   { value: 'fitness', label: 'Fitness', icon: '💪' },
@@ -74,6 +77,7 @@ const targetOptions = [7, 14, 21, 30]
 
 export default function CreateHabitPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState(allSuggestions)
@@ -157,33 +161,46 @@ export default function CreateHabitPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     setLoading(true)
 
-    // In production: insert into Supabase habits table + create streak row
-    // For demo, simulate
-    setTimeout(() => {
-      setLoading(false)
+    try {
+      await createHabit({
+        user_id: user.id,
+        title,
+        description: description || undefined,
+        category: category as HabitCategory,
+        difficulty,
+        hypothesis: hypothesis || undefined,
+        independent_var: independentVar || undefined,
+        dependent_var: dependentVar || undefined,
+        control_vars: controlVars.length > 0 ? controlVars : undefined,
+        target_days: targetDays,
+      })
       router.push('/dashboard')
-    }, 1000)
+    } catch (err) {
+      console.error('Failed to create habit', err)
+      setLoading(false)
+    }
   }
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-6"
       >
         <ArrowLeft size={16} />
         Back to Dashboard
       </Link>
 
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center">
+        <div className="w-10 h-10 bg-brand-50 dark:bg-brand-950/30 rounded-xl flex items-center justify-center">
           <Beaker size={20} className="text-brand-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Create New Experiment</h1>
-          <p className="text-sm text-slate-500">Design your habit as a scientific experiment</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Create New Experiment</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Design your habit as a scientific experiment</p>
         </div>
       </div>
 
@@ -192,13 +209,13 @@ export default function CreateHabitPage() {
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl border border-slate-200 p-6"
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6"
         >
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Basic Information</h2>
 
           <div className="space-y-4">
             <div className="relative" ref={suggestRef}>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Habit Title *
               </label>
               <input
@@ -257,23 +274,23 @@ export default function CreateHabitPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Description
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none dark:bg-slate-800"
                 placeholder="Describe what this habit involves..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Category *
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {categories.map((cat) => (
                   <button
                     key={cat.value}
@@ -281,8 +298,8 @@ export default function CreateHabitPage() {
                     onClick={() => handleCategoryChange(cat.value)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
                       category === cat.value
-                        ? 'border-brand-500 bg-brand-50 text-brand-700'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-400'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     <span>{cat.icon}</span>
@@ -293,7 +310,7 @@ export default function CreateHabitPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Difficulty: {difficulty}/5
               </label>
               <input
@@ -304,7 +321,7 @@ export default function CreateHabitPage() {
                 onChange={(e) => setDifficulty(Number(e.target.value))}
                 className="w-full accent-brand-500"
               />
-              <div className="flex justify-between text-xs text-slate-400 mt-1">
+              <div className="flex justify-between text-xs text-slate-400 dark:text-slate-500 mt-1">
                 <span>Easy</span>
                 <span>Medium</span>
                 <span>Hard</span>
@@ -318,56 +335,56 @@ export default function CreateHabitPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl border border-slate-200 p-6"
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6"
         >
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">Experiment Setup</h2>
-          <p className="text-xs text-slate-400 mb-4">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Experiment Setup</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
             Frame your habit as a scientific experiment
           </p>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Hypothesis
               </label>
               <input
                 type="text"
                 value={hypothesis}
                 onChange={(e) => setHypothesis(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800"
                 placeholder="If I do X, then Y will happen"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                   Independent Variable
                 </label>
                 <input
                   type="text"
                   value={independentVar}
                   onChange={(e) => setIndependentVar(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800"
                   placeholder="What you change"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                   Dependent Variable
                 </label>
                 <input
                   type="text"
                   value={dependentVar}
                   onChange={(e) => setDependentVar(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800"
                   placeholder="What you measure"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Control Variables
               </label>
               <div className="flex gap-2 mb-2">
@@ -376,13 +393,13 @@ export default function CreateHabitPage() {
                   value={newControlVar}
                   onChange={(e) => setNewControlVar(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addControlVar())}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800"
                   placeholder="What stays the same"
                 />
                 <button
                   type="button"
                   onClick={addControlVar}
-                  className="px-3 py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                  className="px-3 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   <Plus size={18} />
                 </button>
@@ -392,7 +409,7 @@ export default function CreateHabitPage() {
                   {controlVars.map((cv, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full"
+                      className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-full"
                     >
                       {cv}
                       <button type="button" onClick={() => removeControlVar(i)}>
@@ -405,7 +422,7 @@ export default function CreateHabitPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Experiment Duration
               </label>
               <div className="flex gap-2">
@@ -416,8 +433,8 @@ export default function CreateHabitPage() {
                     onClick={() => setTargetDays(d)}
                     className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${
                       targetDays === d
-                        ? 'border-brand-500 bg-brand-50 text-brand-700'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-400'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     {d} days

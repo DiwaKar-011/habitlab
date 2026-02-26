@@ -23,6 +23,7 @@ import {
 import { useState } from 'react'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/AuthProvider'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -40,13 +41,24 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
+  const { user, signOut } = useAuth()
+
+  // Get display name from user metadata (Google or email signup)
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'User'
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+  const userEmail = user?.email || ''
 
   return (
     <>
       {/* Mobile toggle */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden bg-white dark:bg-slate-800 rounded-lg p-2 shadow-lg"
+        className="fixed top-3 left-3 z-50 md:hidden bg-white dark:bg-slate-800 rounded-xl p-2.5 shadow-lg border border-slate-200 dark:border-slate-700"
+        aria-label="Toggle menu"
       >
         {isOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -62,7 +74,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 transition-transform duration-300 flex flex-col',
+          'fixed left-0 top-0 h-full w-[280px] sm:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 transition-transform duration-300 flex flex-col',
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
@@ -116,15 +128,37 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Sign Out */}
+        {/* User Info & Sign Out */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-all"
+          {/* User Card */}
+          <div className="flex items-center gap-3 px-3 py-2 mb-2">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center flex-shrink-0">
+                <span className="text-brand-600 dark:text-brand-400 font-bold text-sm">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{displayName}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{userEmail}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-all"
           >
             <LogOut size={18} />
             Sign Out
-          </Link>
+          </button>
         </div>
       </aside>
     </>

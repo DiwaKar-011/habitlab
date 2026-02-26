@@ -135,13 +135,24 @@ export interface ImpactMetric {
 export interface Challenge {
   id: string
   title: string
+  description?: string
   creator_id: string
   category?: string
   duration_days: number
   is_public: boolean
+  is_ai_generated: boolean
   start_date?: string
   end_date?: string
   created_at: string
+}
+
+export interface ChallengeParticipant {
+  id: string
+  challenge_id: string
+  user_id: string
+  joined_at: string
+  completed_days: number
+  last_check_in?: string
 }
 
 // Notification & Reminder types

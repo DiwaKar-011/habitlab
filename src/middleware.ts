@@ -1,13 +1,63 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
-export function middleware(req: NextRequest) {
-  // In production: use createMiddlewareClient from @supabase/auth-helpers-nextjs
-  // to check for session and redirect unauthenticated users.
-  // For demo, allow all routes.
-  return NextResponse.next()
+export async function middleware(req: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({ name, value })
+          response = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          })
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({ name, value: '' })
+          response = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          })
+          response.cookies.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // If user is not signed in and the route is protected, redirect to sign-in
+  if (!session && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/signin') && !req.nextUrl.pathname.startsWith('/signup') && !req.nextUrl.pathname.startsWith('/auth') && !req.nextUrl.pathname.startsWith('/about')) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = '/signin'
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // If user is signed in and visiting sign-in/sign-up, redirect to dashboard
+  if (session && (req.nextUrl.pathname.startsWith('/signin') || req.nextUrl.pathname.startsWith('/signup'))) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/habits/:path*', '/insights/:path*', '/profile/:path*'],
+  matcher: ['/dashboard/:path*', '/habits/:path*', '/insights/:path*', '/profile/:path*', '/learn/:path*', '/impact/:path*', '/leaderboard/:path*', '/challenges/:path*', '/notifications/:path*', '/signin', '/signup'],
 }

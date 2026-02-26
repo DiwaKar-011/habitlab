@@ -1,9 +1,22 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { BookOpen, Play, Pause, Headphones, SkipBack, SkipForward, Volume2 } from 'lucide-react'
-import { mockVideos } from '@/lib/mockData'
+import { useState, useRef, useEffect } from 'react'
+import { BookOpen, Play, Pause, Headphones, SkipBack, SkipForward, Volume2, Plus, X, Upload, Loader2, Star } from 'lucide-react'
+import { getVideos, addVideo } from '@/lib/db'
 import VideoModal from '@/components/learning/VideoModal'
+import type { Video } from '@/types'
+
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ]
+  for (const p of patterns) {
+    const m = url.trim().match(p)
+    if (m) return m[1]
+  }
+  return null
+}
 
 const mockBooks = [
   {
@@ -116,8 +129,50 @@ const mockAudiobooks = [
 ]
 
 export default function LearnPage() {
-  const [activeVideo, setActiveVideo] = useState<typeof mockVideos[0] | null>(null)
+  const [videos, setVideos] = useState<Video[]>([])
+  const [activeVideo, setActiveVideo] = useState<Video | null>(null)
   const [tab, setTab] = useState<'videos' | 'books' | 'audiobooks'>('videos')
+
+  // Load videos from DB
+  useEffect(() => {
+    getVideos().then(setVideos)
+  }, [])
+
+  // Add-video form state
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [ytUrl, setYtUrl] = useState('')
+  const [ytTitle, setYtTitle] = useState('')
+  const [ytSummary, setYtSummary] = useState('')
+  const [ytCategory, setYtCategory] = useState('mindset')
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState('')
+
+  const previewId = extractYouTubeId(ytUrl)
+
+  const handleAddVideo = async () => {
+    if (!previewId) { setAddError('Invalid YouTube URL'); return }
+    if (!ytTitle.trim()) { setAddError('Title is required'); return }
+    setAddError('')
+    setAddLoading(true)
+    try {
+      const newVid = await addVideo({
+        youtube_id: previewId,
+        title: ytTitle.trim(),
+        summary: ytSummary.trim() || undefined,
+        habit_category: ytCategory,
+      })
+      setVideos(prev => [newVid, ...prev])
+      setShowAddForm(false)
+      setYtUrl('')
+      setYtTitle('')
+      setYtSummary('')
+      setYtCategory('mindset')
+    } catch (e: any) {
+      setAddError(e?.message || 'Failed to add video')
+    } finally {
+      setAddLoading(false)
+    }
+  }
 
   // Audiobook player state
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null)
@@ -172,10 +227,10 @@ export default function LearnPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         <button
           onClick={() => setTab('videos')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
             tab === 'videos'
               ? 'bg-brand-600 text-white'
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -210,18 +265,143 @@ export default function LearnPage() {
 
       {/* Videos */}
       {tab === 'videos' && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockVideos.map((video) => (
+        <div className="space-y-4">
+          {/* Add Video Button */}
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            Add YouTube Video
+          </button>
+
+          {/* Add Video Modal */}
+          {showAddForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Upload size={20} className="text-brand-600" />
+                    Add YouTube Video
+                  </h2>
+                  <button onClick={() => { setShowAddForm(false); setAddError('') }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition">
+                    <X size={20} className="text-slate-400" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* YouTube URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">YouTube URL *</label>
+                    <input
+                      type="text"
+                      value={ytUrl}
+                      onChange={e => { setYtUrl(e.target.value); setAddError('') }}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  {/* Thumbnail Preview */}
+                  {previewId && (
+                    <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <img
+                        src={`https://img.youtube.com/vi/${previewId}/hqdefault.jpg`}
+                        alt="Video preview"
+                        className="w-full aspect-video object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
+                    <input
+                      type="text"
+                      value={ytTitle}
+                      onChange={e => setYtTitle(e.target.value)}
+                      placeholder="e.g. How Habits Shape Your Brain"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  {/* Summary */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Summary</label>
+                    <textarea
+                      value={ytSummary}
+                      onChange={e => setYtSummary(e.target.value)}
+                      placeholder="Brief description of the video..."
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                    <select
+                      value={ytCategory}
+                      onChange={e => setYtCategory(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                    >
+                      <option value="mindset">Mindset</option>
+                      <option value="study">Study</option>
+                      <option value="health">Health</option>
+                      <option value="focus">Focus</option>
+                      <option value="eco">Eco</option>
+                      <option value="social">Social</option>
+                    </select>
+                  </div>
+
+                  {/* Error */}
+                  {addError && (
+                    <p className="text-sm text-red-500">{addError}</p>
+                  )}
+
+                  {/* Submit */}
+                  <button
+                    onClick={handleAddVideo}
+                    disabled={addLoading}
+                    className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    {addLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    {addLoading ? 'Adding...' : 'Add Video'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Video Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Recommended videos first, then the rest */}
+          {[...videos].sort((a, b) => (a.trigger_type === 'recommend' ? -1 : 1) - (b.trigger_type === 'recommend' ? -1 : 1)).map((video) => (
             <div
               key={video.id}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+              className={`bg-white dark:bg-slate-900 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${
+                video.trigger_type === 'recommend'
+                  ? 'border-2 border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800'
+                  : 'border border-slate-200 dark:border-slate-800'
+              }`}
               onClick={() => setActiveVideo(video)}
             >
-              <div className="aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center relative">
-                <div className="w-16 h-16 bg-white/90 dark:bg-slate-700/90 rounded-full flex items-center justify-center shadow-lg">
+              <div className="aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center relative group">
+                <img
+                  src={`https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`}
+                  alt={video.title}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
+                <div className="relative z-10 w-16 h-16 bg-white/90 dark:bg-slate-700/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                   <Play size={28} className="text-brand-600 ml-1" />
                 </div>
-                <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                {video.trigger_type === 'recommend' && (
+                  <div className="absolute top-2 left-2 z-10 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Star size={10} fill="white" /> Recommended
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 z-10 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
                   {video.habit_category}
                 </div>
               </div>
@@ -231,6 +411,7 @@ export default function LearnPage() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 

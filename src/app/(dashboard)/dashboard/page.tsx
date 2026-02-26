@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -13,33 +14,68 @@ import {
 import StreakFire from '@/components/gamification/StreakFire'
 import DopamineMeter from '@/components/gamification/DopamineMeter'
 import NeuralPathwayBar from '@/components/gamification/NeuralPathwayBar'
-import {
-  mockHabits,
-  mockStreaks,
-  mockLogs,
-  mockUser,
-  getLogsForHabit,
-  getStreakForHabit,
-} from '@/lib/mockData'
+import { getHabits, getAllStreaks, getAllLogs, getLogsForHabit, getStreak, getProfile } from '@/lib/db'
 import { calculateHabitStrength, calculateConsistency } from '@/lib/scoring'
 import { categoryColors, categoryIcons } from '@/lib/utils'
+import { useAuth } from '@/components/AuthProvider'
+import type { Habit, Streak, DailyLog } from '@/types'
 
 export default function DashboardPage() {
-  const habits = mockHabits
-  const user = mockUser
+  const { user: authUser } = useAuth()
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [streaks, setStreaks] = useState<Streak[]>([])
+  const [allLogs, setAllLogs] = useState<DailyLog[]>([])
+  const [xpPoints, setXpPoints] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const displayName =
+    authUser?.user_metadata?.full_name ||
+    authUser?.user_metadata?.name ||
+    authUser?.email?.split('@')[0] ||
+    'User'
   const today = new Date().toISOString().split('T')[0]
 
+  useEffect(() => {
+    if (!authUser) return
+    const load = async () => {
+      const [h, s, l, p] = await Promise.all([
+        getHabits(authUser.id),
+        getAllStreaks(authUser.id),
+        getAllLogs(authUser.id),
+        getProfile(authUser.id),
+      ])
+      setHabits(h)
+      setStreaks(s)
+      setAllLogs(l)
+      setXpPoints(p?.xp_points || 0)
+      setLoading(false)
+    }
+    load()
+  }, [authUser])
+
   // Today's stats
-  const todayLogs = mockLogs.filter((l) => l.log_date === today)
+  const todayLogs = allLogs.filter((l) => l.log_date === today)
   const completedToday = todayLogs.filter((l) => l.completed).length
-  const totalStreaks = mockStreaks.reduce((a, s) => a + s.current_streak, 0)
+  const totalStreaks = streaks.reduce((a, s) => a + s.current_streak, 0)
+
+  const getStreakForHabit = (habitId: string) => streaks.find((s) => s.habit_id === habitId)
+  const getLogsForHabitLocal = (habitId: string) =>
+    allLogs.filter((l) => l.habit_id === habitId).sort((a, b) => a.log_date.localeCompare(b.log_date))
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Welcome back, {user.name.split(' ')[0]} 👋
+          Welcome back, {displayName.split(' ')[0]} 👋
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
           Track your experiments and build lasting habits.
@@ -70,7 +106,7 @@ export default function DashboardPage() {
           {
             icon: Zap,
             label: 'Total XP',
-            value: user.xp_points,
+            value: xpPoints,
             color: 'text-purple-500 bg-purple-50',
           },
         ].map((stat, i) => (
@@ -112,7 +148,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {habits.map((habit, i) => {
             const streak = getStreakForHabit(habit.id)
-            const logs = getLogsForHabit(habit.id)
+            const logs = getLogsForHabitLocal(habit.id)
             const completed = logs.filter((l) => l.completed).length
             const consistency = calculateConsistency(completed, logs.length)
             const strength = calculateHabitStrength(

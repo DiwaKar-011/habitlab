@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft, CheckCircle, XCircle, Smile, Frown, Meh } from 'lucide-react'
 import Link from 'next/link'
-import { mockHabits, getStreakForHabit } from '@/lib/mockData'
+import { getHabit, getStreak, createLog } from '@/lib/db'
+import { useAuth } from '@/components/AuthProvider'
+import type { Habit, Streak } from '@/types'
 
 const moodEmojis = [
   { value: 1, emoji: '😢', label: 'Terrible' },
@@ -26,9 +28,11 @@ const failureReasons = [
 export default function DailyLogPage() {
   const router = useRouter()
   const params = useParams()
+  const { user } = useAuth()
   const habitId = params.id as string
-  const habit = mockHabits.find((h) => h.id === habitId)
-  const streak = getStreakForHabit(habitId)
+  const [habit, setHabit] = useState<Habit | null>(null)
+  const [streak, setStreakData] = useState<Streak | null>(null)
+  const [pageLoading, setPageLoading] = useState(true)
 
   const [step, setStep] = useState<'choice' | 'yes' | 'no' | 'done'>('choice')
   const [completionTime, setCompletionTime] = useState('')
@@ -39,6 +43,24 @@ export default function DailyLogPage() {
   const [failureNotes, setFailureNotes] = useState('')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const load = async () => {
+      const [h, s] = await Promise.all([getHabit(habitId), getStreak(habitId)])
+      setHabit(h)
+      setStreakData(s)
+      setPageLoading(false)
+    }
+    load()
+  }, [habitId])
+
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+      </div>
+    )
+  }
+
   if (!habit) {
     return (
       <div className="text-center py-20 text-slate-500">
@@ -47,28 +69,43 @@ export default function DailyLogPage() {
     )
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!user) return
     setLoading(true)
-    // In production: insert into daily_logs + update streak + award XP
-    setTimeout(() => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      await createLog({
+        habit_id: habitId,
+        user_id: user.id,
+        log_date: today,
+        completed: step === 'yes',
+        completion_time: step === 'yes' ? completionTime || undefined : undefined,
+        mood_rating: moodRating,
+        energy_rating: step === 'yes' ? energyRating : undefined,
+        notes: notes || undefined,
+        failure_reason: step === 'no' ? failureReason || undefined : undefined,
+        failure_notes: step === 'no' ? failureNotes || undefined : undefined,
+      })
       setStep('done')
-      setLoading(false)
-    }, 800)
+    } catch (err) {
+      console.error('Failed to log', err)
+    }
+    setLoading(false)
   }
 
   return (
     <div className="max-w-lg mx-auto animate-fade-in">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-6"
       >
         <ArrowLeft size={16} />
         Back to Dashboard
       </Link>
 
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">{habit.title}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{habit.title}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
         {streak && (
@@ -81,7 +118,7 @@ export default function DailyLogPage() {
       {/* Step: Choice */}
       {step === 'choice' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <h2 className="text-lg font-semibold text-center text-slate-700 mb-6">
+          <h2 className="text-lg font-semibold text-center text-slate-700 dark:text-slate-200 mb-6">
             Did you complete this habit today?
           </h2>
           <div className="grid grid-cols-2 gap-4">
@@ -108,24 +145,24 @@ export default function DailyLogPage() {
       {/* Step: Yes */}
       {step === 'yes' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 What time did you complete it?
               </label>
               <input
                 type="time"
                 value={completionTime}
                 onChange={(e) => setCompletionTime(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Mood Rating
               </label>
-              <div className="flex justify-between gap-2">
+              <div className="flex justify-between gap-1.5 sm:gap-2">
                 {moodEmojis.map((m) => (
                   <button
                     key={m.value}
@@ -164,14 +201,14 @@ export default function DailyLogPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Notes (optional)
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
                 placeholder="How did it go?"
               />
             </div>
@@ -190,9 +227,9 @@ export default function DailyLogPage() {
       {/* Step: No */}
       {step === 'no' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 What got in the way?
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -269,8 +306,8 @@ export default function DailyLogPage() {
           className="text-center py-12"
         >
           <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Log Saved!</h2>
-          <p className="text-slate-500 mb-6">Your data has been recorded for your experiment.</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Log Saved!</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">Your data has been recorded for your experiment.</p>
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition-all"
