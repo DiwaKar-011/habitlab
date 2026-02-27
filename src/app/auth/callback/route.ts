@@ -1,55 +1,20 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+/**
+ * GET /auth/callback
+ *
+ * With Firebase, OAuth is handled client-side via signInWithPopup.
+ * This route is kept as a fallback redirect – it simply sends users
+ * to the dashboard (or back to signin on error).
+ */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
+  const { origin, searchParams } = new URL(request.url)
   const next = searchParams.get('next') ?? '/dashboard'
+  const error = searchParams.get('error')
 
-  if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Ensure profile row exists (trigger handles it, but belt-and-suspenders)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('profiles').upsert(
-          {
-            id: user.id,
-            email: user.email,
-            name:
-              user.user_metadata?.full_name ||
-              user.user_metadata?.name ||
-              user.email?.split('@')[0] || 'User',
-            avatar_url:
-              user.user_metadata?.avatar_url ||
-              user.user_metadata?.picture || null,
-          },
-          { onConflict: 'id' }
-        )
-      }
-      return NextResponse.redirect(`${origin}${next}`)
-    }
+  if (error) {
+    return NextResponse.redirect(`${origin}/signin?error=auth_failed`)
   }
 
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/signin?error=auth_failed`)
+  return NextResponse.redirect(`${origin}${next}`)
 }

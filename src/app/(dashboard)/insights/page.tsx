@@ -10,22 +10,27 @@ import { useAuth } from '@/components/AuthProvider'
 import type { Habit, DailyLog } from '@/types'
 
 export default function InsightsPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [range, setRange] = useState<'7' | '30' | 'all'>('30')
   const [habits, setHabits] = useState<Habit[]>([])
   const [allLogs, setAllLogs] = useState<DailyLog[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (authLoading) return
+    if (!user) { setLoading(false); return }
     const load = async () => {
-      const [h, l] = await Promise.all([getHabits(user.id), getAllLogs(user.id)])
-      setHabits(h)
-      setAllLogs(l)
+      try {
+        const [h, l] = await Promise.all([getHabits(user.id), getAllLogs(user.id)])
+        setHabits(h)
+        setAllLogs(l)
+      } catch (err) {
+        console.error('Insights load error:', err)
+      }
       setLoading(false)
     }
     load()
-  }, [user])
+  }, [user, authLoading])
 
   // Combine all insights
   const allInsights = habits.flatMap((habit) => {

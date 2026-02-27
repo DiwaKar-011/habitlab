@@ -44,14 +44,13 @@ export default function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const { user, signOut, isGuest } = useAuth()
 
-  // Get display name from user metadata (Google or email signup)
+  // Get display name from user (Firebase auth)
   const displayName = isGuest
     ? 'Guest'
-    : user?.user_metadata?.full_name ||
-      user?.user_metadata?.name ||
+    : user?.displayName ||
       user?.email?.split('@')[0] ||
       'User'
-  const avatarUrl = isGuest ? null : (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)
+  const avatarUrl = isGuest ? null : (user?.photoURL || null)
   const userEmail = isGuest ? 'Sign in for full access' : (user?.email || '')
 
   return (

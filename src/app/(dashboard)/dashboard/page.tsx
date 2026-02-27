@@ -21,7 +21,7 @@ import { useAuth } from '@/components/AuthProvider'
 import type { Habit, Streak, DailyLog } from '@/types'
 
 export default function DashboardPage() {
-  const { user: authUser } = useAuth()
+  const { user: authUser, loading: authLoading } = useAuth()
   const [habits, setHabits] = useState<Habit[]>([])
   const [streaks, setStreaks] = useState<Streak[]>([])
   const [allLogs, setAllLogs] = useState<DailyLog[]>([])
@@ -29,29 +29,33 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   const displayName =
-    authUser?.user_metadata?.full_name ||
-    authUser?.user_metadata?.name ||
+    authUser?.displayName ||
     authUser?.email?.split('@')[0] ||
     'User'
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    if (!authUser) return
+    if (authLoading) return
+    if (!authUser) { setLoading(false); return }
     const load = async () => {
-      const [h, s, l, p] = await Promise.all([
-        getHabits(authUser.id),
-        getAllStreaks(authUser.id),
-        getAllLogs(authUser.id),
-        getProfile(authUser.id),
-      ])
-      setHabits(h)
-      setStreaks(s)
-      setAllLogs(l)
-      setXpPoints(p?.xp_points || 0)
+      try {
+        const [h, s, l, p] = await Promise.all([
+          getHabits(authUser.id),
+          getAllStreaks(authUser.id),
+          getAllLogs(authUser.id),
+          getProfile(authUser.id),
+        ])
+        setHabits(h)
+        setStreaks(s)
+        setAllLogs(l)
+        setXpPoints(p?.xp_points || 0)
+      } catch (err) {
+        console.error('Dashboard load error:', err)
+      }
       setLoading(false)
     }
     load()
-  }, [authUser])
+  }, [authUser, authLoading])
 
   // Today's stats
   const todayLogs = allLogs.filter((l) => l.log_date === today)

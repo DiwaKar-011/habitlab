@@ -1,15 +1,25 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase-browser'
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
+import { auth } from '@/lib/firebase'
+import { onAuthStateChanged, signOut as firebaseSignOut, type User as FirebaseUser } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 
 const GUEST_KEY = 'habitlab_guest'
 
+// Extend FirebaseUser with an `id` alias so existing code using user.id keeps working
+type AppUser = FirebaseUser & { id: string }
+
+function wrapUser(firebaseUser: FirebaseUser): AppUser {
+  const wrapped = firebaseUser as AppUser
+  // Firebase uses .uid – alias it to .id for compatibility
+  // Use direct assignment for reliability across React re-renders
+  ;(wrapped as any).id = firebaseUser.uid
+  return wrapped
+}
+
 interface AuthState {
-  user: SupabaseUser | null
-  session: Session | null
+  user: AppUser | null
   loading: boolean
   isGuest: boolean
   signOut: () => Promise<void>
@@ -18,7 +28,6 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState>({
   user: null,
-  session: null,
   loading: true,
   isGuest: false,
   signOut: async () => {},
@@ -26,43 +35,36 @@ const AuthContext = createContext<AuthState>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [isGuest, setIsGuest] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      // If no real session, check for guest
-      if (!session?.user) {
+    // Guard: if Firebase isn't initialized (e.g. during build/SSG), skip
+    if (!auth) {
+      setLoading(false)
+      return
+    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser ? wrapUser(firebaseUser) : null)
+      // Set/clear a cookie so the middleware can detect auth state
+      if (firebaseUser) {
+        const token = await firebaseUser.getIdToken()
+        document.cookie = `firebaseAuthToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+        setIsGuest(false)
+        if (typeof window !== 'undefined') localStorage.removeItem(GUEST_KEY)
+      } else {
+        document.cookie = `firebaseAuthToken=; path=/; max-age=0`
+        // If no real user, check for guest
         const guestFlag = typeof window !== 'undefined' && localStorage.getItem(GUEST_KEY)
         setIsGuest(guestFlag === 'true')
       }
       setLoading(false)
     })
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      // If user signs in for real, clear guest flag
-      if (session?.user) {
-        setIsGuest(false)
-        if (typeof window !== 'undefined') localStorage.removeItem(GUEST_KEY)
-      }
-      setLoading(false)
-      router.refresh()
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase, router])
+    return () => unsubscribe()
+  }, [router])
 
   const signInAsGuest = () => {
     if (typeof window !== 'undefined') {
@@ -75,21 +77,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    // Clear all auth cookies FIRST to prevent middleware redirect loops
+    if (typeof window !== 'undefined') {
+      document.cookie = 'firebaseAuthToken=; path=/; max-age=0'
+      document.cookie = `${GUEST_KEY}=; path=/; max-age=0`
+    }
     if (isGuest) {
       setIsGuest(false)
       if (typeof window !== 'undefined') {
         localStorage.removeItem(GUEST_KEY)
-        document.cookie = `${GUEST_KEY}=; path=/; max-age=0`
       }
       router.push('/signin')
+      router.refresh()
       return
     }
-    await supabase.auth.signOut()
+    try {
+      await firebaseSignOut(auth!)
+    } catch (e) {
+      console.error('Sign out error:', e)
+    }
+    setUser(null)
     router.push('/signin')
+    router.refresh()
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isGuest, signOut, signInAsGuest }}>
+    <AuthContext.Provider value={{ user, loading, isGuest, signOut, signInAsGuest }}>
       {children}
     </AuthContext.Provider>
   )

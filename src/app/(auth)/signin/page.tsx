@@ -4,99 +4,92 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff, UserCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase-browser'
+import { auth } from '@/lib/firebase'
+import { signInWithEmailAndPassword, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { upsertProfile } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function SignInPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showResend, setShowResend] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [resent, setResent] = useState(false)
-
-  const handleResendConfirmation = async () => {
-    if (!email) return
-    setResending(true)
-    setResent(false)
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    setResending(false)
-    if (!error) setResent(true)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setShowResend(false)
     setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-
-      if (signInError) {
-        // Friendly error messages
-        if (signInError.message.toLowerCase().includes('email not confirmed')) {
-          setError('Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link.')
-          setShowResend(true)
-        } else if (signInError.message.toLowerCase().includes('invalid login credentials')) {
-          setError('Invalid email or password. Please check your credentials and try again.')
-        } else {
-          setError(signInError.message)
-        }
-        setLoading(false)
-        return
-      }
+      const cred = await signInWithEmailAndPassword(auth, email, password)
 
       // Ensure profile exists (non-blocking)
-      if (data.user) {
-        try {
-          await supabase.from('profiles').upsert(
-            {
-              id: data.user.id,
-              email: data.user.email,
-              name:
-                data.user.user_metadata?.full_name ||
-                data.user.user_metadata?.name ||
-                data.user.email?.split('@')[0] || 'User',
-              avatar_url:
-                data.user.user_metadata?.avatar_url ||
-                data.user.user_metadata?.picture || null,
-            },
-            { onConflict: 'id' }
-          )
-        } catch {
-          // Profile upsert is non-blocking – don't break the sign-in flow
-        }
+      try {
+        await upsertProfile({
+          id: cred.user.uid,
+          email: cred.user.email || email,
+          name: cred.user.displayName || cred.user.email?.split('@')[0] || 'User',
+          avatar_url: cred.user.photoURL || undefined,
+        })
+      } catch {
+        // Profile upsert is non-blocking
       }
 
       router.push('/dashboard')
       router.refresh()
-    } catch (err) {
-      setError('Something went wrong. Please try again.')
+    } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        setError('Invalid email or password. Please check your credentials and try again.')
+      } else if (code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.')
+      } else {
+        setError(err?.message || 'Something went wrong. Please try again.')
+      }
       setLoading(false)
     }
   }
 
   const handleGitHubSignIn = async () => {
     setError('')
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) {
-      setError(error.message)
+    try {
+      const provider = new GithubAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      // Ensure profile exists
+      try {
+        await upsertProfile({
+          id: result.user.uid,
+          email: result.user.email || '',
+          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          avatar_url: result.user.photoURL || undefined,
+        })
+      } catch {}
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err: any) {
+      setError(err?.message || 'GitHub sign-in failed.')
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError('')
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      try {
+        await upsertProfile({
+          id: result.user.uid,
+          email: result.user.email || '',
+          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          avatar_url: result.user.photoURL || undefined,
+        })
+      } catch {}
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed.')
     }
   }
 
@@ -117,6 +110,21 @@ export default function SignInPage() {
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+          {/* Google Sign In */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium hover:bg-slate-50 transition-all mb-3"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+          </button>
+
           {/* GitHub Sign In */}
           <button
             type="button"
@@ -143,16 +151,6 @@ export default function SignInPage() {
             {error && (
               <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
                 {error}
-                {showResend && (
-                  <button
-                    type="button"
-                    onClick={handleResendConfirmation}
-                    disabled={resending}
-                    className="block mt-2 text-brand-600 font-medium hover:underline disabled:opacity-50"
-                  >
-                    {resending ? 'Resending...' : resent ? 'Confirmation email resent!' : 'Resend confirmation email'}
-                  </button>
-                )}
               </div>
             )}
 

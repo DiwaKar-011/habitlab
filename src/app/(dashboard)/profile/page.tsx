@@ -18,7 +18,7 @@ const personalityIcons: Record<string, string> = {
 }
 
 export default function ProfilePage() {
-  const { user: authUser } = useAuth()
+  const { user: authUser, loading: authLoading } = useAuth()
   const [habits, setHabits] = useState<Habit[]>([])
   const [allLogs, setAllLogs] = useState<DailyLog[]>([])
   const [streaks, setStreaks] = useState<Streak[]>([])
@@ -27,35 +27,39 @@ export default function ProfilePage() {
   const [knowledgeScore, setKnowledgeScore] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  // Build user info from Supabase auth
+  // Build user info from Firebase auth
   const displayName =
-    authUser?.user_metadata?.full_name ||
-    authUser?.user_metadata?.name ||
+    authUser?.displayName ||
     authUser?.email?.split('@')[0] ||
     'User'
   const userEmail = authUser?.email || ''
-  const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture
+  const avatarUrl = authUser?.photoURL
 
   useEffect(() => {
-    if (!authUser) return
+    if (authLoading) return
+    if (!authUser) { setLoading(false); return }
     const load = async () => {
-      const [h, l, s, ub, p] = await Promise.all([
-        getHabits(authUser.id),
-        getAllLogs(authUser.id),
-        getAllStreaks(authUser.id),
-        getUserBadges(authUser.id),
-        getProfile(authUser.id),
-      ])
-      setHabits(h)
-      setAllLogs(l)
-      setStreaks(s)
-      setUserBadges(ub)
-      setXpPoints(p?.xp_points || 0)
-      setKnowledgeScore(p?.knowledge_score || 0)
+      try {
+        const [h, l, s, ub, p] = await Promise.all([
+          getHabits(authUser.id),
+          getAllLogs(authUser.id),
+          getAllStreaks(authUser.id),
+          getUserBadges(authUser.id),
+          getProfile(authUser.id),
+        ])
+        setHabits(h)
+        setAllLogs(l)
+        setStreaks(s)
+        setUserBadges(ub)
+        setXpPoints(p?.xp_points || 0)
+        setKnowledgeScore(p?.knowledge_score || 0)
+      } catch (err) {
+        console.error('Profile load error:', err)
+      }
       setLoading(false)
     }
     load()
-  }, [authUser])
+  }, [authUser, authLoading])
 
   const personality = assignPersonality(habits, allLogs, knowledgeScore)
   const totalCompleted = allLogs.filter((l) => l.completed).length

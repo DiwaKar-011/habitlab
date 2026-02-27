@@ -1,54 +1,30 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: req.headers,
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            req.cookies.set(name, value)
-          )
-          response = NextResponse.next({
-            request: {
-              headers: req.headers,
-            },
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  // Use getUser() instead of getSession() for proper server-side validation
-  const { data: { user } } = await supabase.auth.getUser()
+  // Check for Firebase auth token cookie (set by AuthProvider on the client)
+  const firebaseToken = req.cookies.get('firebaseAuthToken')?.value
 
   // Check for guest mode cookie
   const isGuest = req.cookies.get('habitlab_guest')?.value === 'true'
 
+  const isAuthenticated = !!firebaseToken || isGuest
+
   // If user is not signed in (and not guest) and the route is protected, redirect to sign-in
-  if (!user && !isGuest && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/signin') && !req.nextUrl.pathname.startsWith('/signup') && !req.nextUrl.pathname.startsWith('/auth') && !req.nextUrl.pathname.startsWith('/about')) {
+  if (!isAuthenticated && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/signin') && !req.nextUrl.pathname.startsWith('/signup') && !req.nextUrl.pathname.startsWith('/auth') && !req.nextUrl.pathname.startsWith('/about')) {
     const redirectUrl = req.nextUrl.clone()
     redirectUrl.pathname = '/signin'
     return NextResponse.redirect(redirectUrl)
   }
 
   // If user (or guest) is signed in and visiting sign-in/sign-up, redirect to dashboard
-  if ((user || isGuest) && (req.nextUrl.pathname.startsWith('/signin') || req.nextUrl.pathname.startsWith('/signup'))) {
+  if (isAuthenticated && (req.nextUrl.pathname.startsWith('/signin') || req.nextUrl.pathname.startsWith('/signup'))) {
     const redirectUrl = req.nextUrl.clone()
     redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)

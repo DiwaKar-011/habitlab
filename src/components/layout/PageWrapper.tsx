@@ -10,6 +10,7 @@ import {
   User,
 } from 'lucide-react'
 import Sidebar from './Sidebar'
+import { useAuth } from '@/components/AuthProvider'
 
 const bottomNavItems = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -25,6 +26,19 @@ export default function PageWrapper({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const { loading: authLoading, user, isGuest } = useAuth()
+
+  // Show a fast loading screen while Firebase auth initializes
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600 mx-auto mb-3"></div>
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
