@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { BookOpen, Play, Pause, Headphones, SkipBack, SkipForward, Volume2, Plus, X, Upload, Loader2, Star } from 'lucide-react'
 import { getVideos, addVideo } from '@/lib/db'
 import VideoModal from '@/components/learning/VideoModal'
+import GuestGuard from '@/components/GuestGuard'
 import type { Video } from '@/types'
 
 function extractYouTubeId(url: string): string | null {
@@ -129,6 +130,14 @@ const mockAudiobooks = [
 ]
 
 export default function LearnPage() {
+  return (
+    <GuestGuard feature="Learn">
+      <LearnContent />
+    </GuestGuard>
+  )
+}
+
+function LearnContent() {
   const [videos, setVideos] = useState<Video[]>([])
   const [activeVideo, setActiveVideo] = useState<Video | null>(null)
   const [tab, setTab] = useState<'videos' | 'books' | 'audiobooks'>('videos')

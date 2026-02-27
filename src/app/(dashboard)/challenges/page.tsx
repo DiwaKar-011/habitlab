@@ -7,6 +7,7 @@ import {
   Sparkles, LogOut, Loader2, Zap, Target, X, Clock,
 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
+import GuestGuard from '@/components/GuestGuard'
 import type { Challenge, ChallengeParticipant } from '@/types'
 
 /* ── localStorage helpers ─────────────────────────────────── */
@@ -120,6 +121,14 @@ type Tab = 'all' | 'joined' | 'ai'
    MAIN COMPONENT
    ================================================================ */
 export default function ChallengesPage() {
+  return (
+    <GuestGuard feature="Challenges">
+      <ChallengesContent />
+    </GuestGuard>
+  )
+}
+
+function ChallengesContent() {
   const { user } = useAuth()
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [participations, setParticipations] = useState<ChallengeParticipant[]>([])

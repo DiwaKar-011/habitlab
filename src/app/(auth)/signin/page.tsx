@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Beaker, Eye, EyeOff } from 'lucide-react'
+import { Beaker, Eye, EyeOff, UserCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -161,8 +162,35 @@ export default function SignInPage() {
               Sign Up
             </Link>
           </div>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-3 text-slate-400">or</span>
+            </div>
+          </div>
+
+          {/* Guest Sign In */}
+          <GuestButton />
         </div>
       </div>
     </div>
+  )
+}
+
+function GuestButton() {
+  const { signInAsGuest } = useAuth()
+  return (
+    <button
+      type="button"
+      onClick={signInAsGuest}
+      className="w-full flex items-center justify-center gap-2 bg-slate-100 border border-slate-200 text-slate-600 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-all"
+    >
+      <UserCircle size={20} />
+      Continue as Guest
+    </button>
   )
 }

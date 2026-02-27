@@ -19,6 +19,7 @@ import {
   BellRing,
   Sun,
   Moon,
+  Lock,
 } from 'lucide-react'
 import { useState } from 'react'
 import NotificationBell from '@/components/notifications/NotificationBell'
@@ -26,31 +27,32 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/components/AuthProvider'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/habits/create', label: 'New Experiment', icon: Plus },
-  { href: '/insights', label: 'Insights', icon: BarChart3 },
-  { href: '/learn', label: 'Learn', icon: BookOpen },
-  { href: '/impact', label: 'Impact', icon: Globe },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/challenges', label: 'Challenges', icon: Swords },
-  { href: '/notifications', label: 'Reminders', icon: BellRing },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, guestLocked: false },
+  { href: '/habits/create', label: 'New Experiment', icon: Plus, guestLocked: false },
+  { href: '/insights', label: 'Insights', icon: BarChart3, guestLocked: false },
+  { href: '/learn', label: 'Learn', icon: BookOpen, guestLocked: true },
+  { href: '/impact', label: 'Impact', icon: Globe, guestLocked: false },
+  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, guestLocked: false },
+  { href: '/challenges', label: 'Challenges', icon: Swords, guestLocked: true },
+  { href: '/notifications', label: 'Reminders', icon: BellRing, guestLocked: false },
+  { href: '/profile', label: 'Profile', icon: User, guestLocked: false },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
-  const { user, signOut } = useAuth()
+  const { user, signOut, isGuest } = useAuth()
 
   // Get display name from user metadata (Google or email signup)
-  const displayName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split('@')[0] ||
-    'User'
-  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
-  const userEmail = user?.email || ''
+  const displayName = isGuest
+    ? 'Guest'
+    : user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email?.split('@')[0] ||
+      'User'
+  const avatarUrl = isGuest ? null : (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)
+  const userEmail = isGuest ? 'Sign in for full access' : (user?.email || '')
 
   return (
     <>
@@ -109,20 +111,26 @@ export default function Sidebar() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const locked = isGuest && item.guestLocked
             return (
               <Link
                 key={item.href}
-                href={item.href}
-                onClick={() => setIsOpen(false)}
+                href={locked ? '#' : item.href}
+                onClick={(e) => {
+                  if (locked) e.preventDefault()
+                  else setIsOpen(false)
+                }}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-                  isActive
+                  locked && 'opacity-50 cursor-not-allowed',
+                  isActive && !locked
                     ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                 )}
               >
                 <item.icon size={18} />
                 {item.label}
+                {locked && <Lock size={14} className="ml-auto text-slate-400" />}
               </Link>
             )
           })}

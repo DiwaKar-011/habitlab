@@ -37,15 +37,18 @@ export async function middleware(req: NextRequest) {
   // Use getUser() instead of getSession() for proper server-side validation
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If user is not signed in and the route is protected, redirect to sign-in
-  if (!user && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/signin') && !req.nextUrl.pathname.startsWith('/signup') && !req.nextUrl.pathname.startsWith('/auth') && !req.nextUrl.pathname.startsWith('/about')) {
+  // Check for guest mode cookie
+  const isGuest = req.cookies.get('habitlab_guest')?.value === 'true'
+
+  // If user is not signed in (and not guest) and the route is protected, redirect to sign-in
+  if (!user && !isGuest && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/signin') && !req.nextUrl.pathname.startsWith('/signup') && !req.nextUrl.pathname.startsWith('/auth') && !req.nextUrl.pathname.startsWith('/about')) {
     const redirectUrl = req.nextUrl.clone()
     redirectUrl.pathname = '/signin'
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is signed in and visiting sign-in/sign-up, redirect to dashboard
-  if (user && (req.nextUrl.pathname.startsWith('/signin') || req.nextUrl.pathname.startsWith('/signup'))) {
+  // If user (or guest) is signed in and visiting sign-in/sign-up, redirect to dashboard
+  if ((user || isGuest) && (req.nextUrl.pathname.startsWith('/signin') || req.nextUrl.pathname.startsWith('/signup'))) {
     const redirectUrl = req.nextUrl.clone()
     redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)
