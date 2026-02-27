@@ -54,7 +54,7 @@ export default function SignUpPage() {
       return
     }
 
-    // If email confirmation is disabled, user is auto-confirmed – create profile now
+    // If email confirmation is disabled, user is auto-confirmed – create profile & redirect
     if (data.user && data.session) {
       await supabase.from('profiles').upsert(
         {
@@ -65,8 +65,13 @@ export default function SignUpPage() {
         },
         { onConflict: 'id' }
       )
+      setLoading(false)
+      router.push('/dashboard')
+      router.refresh()
+      return
     }
 
+    // Email confirmation is required – show check-your-email screen
     setSuccess(true)
     setLoading(false)
   }
