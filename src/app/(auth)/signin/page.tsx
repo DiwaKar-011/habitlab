@@ -15,40 +15,76 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showResend, setShowResend] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
+
+  const handleResendConfirmation = async () => {
+    if (!email) return
+    setResending(true)
+    setResent(false)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    setResending(false)
+    if (!error) setResent(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setShowResend(false)
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError(error.message)
+      if (signInError) {
+        // Friendly error messages
+        if (signInError.message.toLowerCase().includes('email not confirmed')) {
+          setError('Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link.')
+          setShowResend(true)
+        } else if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials and try again.')
+        } else {
+          setError(signInError.message)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Ensure profile exists (non-blocking)
+      if (data.user) {
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: data.user.id,
+              email: data.user.email,
+              name:
+                data.user.user_metadata?.full_name ||
+                data.user.user_metadata?.name ||
+                data.user.email?.split('@')[0] || 'User',
+              avatar_url:
+                data.user.user_metadata?.avatar_url ||
+                data.user.user_metadata?.picture || null,
+            },
+            { onConflict: 'id' }
+          )
+        } catch {
+          // Profile upsert is non-blocking – don't break the sign-in flow
+        }
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err) {
+      setError('Something went wrong. Please try again.')
       setLoading(false)
-      return
     }
-
-    // Ensure profile exists
-    if (data.user) {
-      await supabase.from('profiles').upsert(
-        {
-          id: data.user.id,
-          email: data.user.email,
-          name:
-            data.user.user_metadata?.full_name ||
-            data.user.user_metadata?.name ||
-            data.user.email?.split('@')[0] || 'User',
-          avatar_url:
-            data.user.user_metadata?.avatar_url ||
-            data.user.user_metadata?.picture || null,
-        },
-        { onConflict: 'id' }
-      )
-    }
-
-    router.push('/dashboard')
-    router.refresh()
   }
 
   const handleGitHubSignIn = async () => {
@@ -107,6 +143,16 @@ export default function SignInPage() {
             {error && (
               <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
                 {error}
+                {showResend && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resending}
+                    className="block mt-2 text-brand-600 font-medium hover:underline disabled:opacity-50"
+                  >
+                    {resending ? 'Resending...' : resent ? 'Confirmation email resent!' : 'Resend confirmation email'}
+                  </button>
+                )}
               </div>
             )}
 

@@ -16,6 +16,8 @@ export default function SignUpPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
 
   const validatePassword = (pw: string) => {
     if (pw.length < 8) return 'Password must be at least 8 characters'
@@ -36,44 +38,103 @@ export default function SignUpPage() {
 
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-          name: name,
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            name: name,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
+      })
+
+      if (signUpError) {
+        setError(signUpError.message)
+        setLoading(false)
+        return
+      }
+
+      // Detect duplicate email – Supabase returns a fake user with empty identities
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        setError('An account with this email already exists. Please sign in instead.')
+        setLoading(false)
+        return
+      }
+
+      // If email confirmation is disabled, user is auto-confirmed – create profile & redirect
+      if (data.user && data.session) {
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: data.user.id,
+              email: data.user.email,
+              name: name,
+              avatar_url: null,
+            },
+            { onConflict: 'id' }
+          )
+        } catch {
+          // Profile creation is non-blocking
+        }
+        setLoading(false)
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
+      // If we got a user but no session, try to sign in directly
+      // (works if Supabase auto-confirms but doesn't return session in some edge cases)
+      if (data.user && !data.session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (!signInError && signInData.session) {
+          try {
+            await supabase.from('profiles').upsert(
+              {
+                id: signInData.user.id,
+                email: signInData.user.email,
+                name: name,
+                avatar_url: null,
+              },
+              { onConflict: 'id' }
+            )
+          } catch {
+            // Profile creation is non-blocking
+          }
+          setLoading(false)
+          router.push('/dashboard')
+          router.refresh()
+          return
+        }
+      }
+
+      // Email confirmation is required – show check-your-email screen
+      setSuccess(true)
+      setLoading(false)
+    } catch (err) {
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    setResending(true)
+    setResent(false)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    // If email confirmation is disabled, user is auto-confirmed – create profile & redirect
-    if (data.user && data.session) {
-      await supabase.from('profiles').upsert(
-        {
-          id: data.user.id,
-          email: data.user.email,
-          name: name,
-          avatar_url: null,
-        },
-        { onConflict: 'id' }
-      )
-      setLoading(false)
-      router.push('/dashboard')
-      router.refresh()
-      return
-    }
-
-    // Email confirmation is required – show check-your-email screen
-    setSuccess(true)
-    setLoading(false)
+    setResending(false)
+    if (!error) setResent(true)
   }
 
   const handleGitHubSignUp = async () => {
@@ -103,9 +164,19 @@ export default function SignUpPage() {
             <p className="text-sm text-slate-500 mb-6">
               We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
             </p>
+            <p className="text-xs text-slate-400 mb-4">
+              Didn&apos;t receive it? Check your spam folder or click below to resend.
+            </p>
+            <button
+              onClick={handleResendConfirmation}
+              disabled={resending}
+              className="inline-block bg-slate-100 text-slate-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-slate-200 disabled:opacity-50 transition-all mb-3 w-full"
+            >
+              {resending ? 'Resending...' : resent ? 'Email Resent!' : 'Resend Confirmation Email'}
+            </button>
             <Link
               href="/signin"
-              className="inline-block bg-brand-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-all"
+              className="inline-block bg-brand-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-all w-full text-center"
             >
               Go to Sign In
             </Link>
