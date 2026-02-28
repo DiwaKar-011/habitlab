@@ -22,6 +22,12 @@ import {
   Medal,
   Clock,
   Eye,
+  UserPlus,
+  Users,
+  ChevronDown,
+  Trash2,
+  BarChart3,
+  Hash,
 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import {
@@ -117,6 +123,9 @@ export default function ProfilePage() {
   const [statsToast, setStatsToast] = useState<any>(null)
   const [toastVisible, setToastVisible] = useState(false)
   const [statsLoading, setStatsLoading] = useState<string | null>(null)
+  const [friendRanks, setFriendRanks] = useState<Record<string, number>>({})
+  const [expandedFriend, setExpandedFriend] = useState<string | null>(null)
+  const [friendTab, setFriendTab] = useState<'friends' | 'requests'>('friends')
 
   useEffect(() => {
     if (authLoading) return
@@ -145,6 +154,23 @@ export default function ProfilePage() {
         if (p) {
           setNameInput(p.name || '')
           setUsernameInput(p.username || '')
+        }
+
+        // Load ranks for all friends
+        if (fr.length > 0) {
+          const ranks: Record<string, number> = {}
+          await Promise.all(
+            fr.map(async (f: any) => {
+              const fId = f.friend_profile?.id
+              if (fId) {
+                try {
+                  const r = await getUserRank(fId)
+                  ranks[fId] = r
+                } catch {}
+              }
+            })
+          )
+          setFriendRanks(ranks)
         }
 
         // Check for new badges (also auto-seeds badge definitions)
@@ -222,6 +248,11 @@ export default function ProfilePage() {
       setFriendRequests((prev) => prev.filter((r: any) => r.from_user_id !== fromUserId))
       const updated = await getFriends(authUser.id).catch(() => [])
       setFriends(updated)
+      // Load rank for new friend
+      try {
+        const rank = await getUserRank(fromUserId)
+        setFriendRanks((prev) => ({ ...prev, [fromUserId]: rank }))
+      } catch {}
     } catch (err) { console.error(err) }
   }
 
@@ -630,43 +661,222 @@ export default function ProfilePage() {
         )}
       </motion.div>
 
-      {/* Pending Friend Requests */}
-      {friendRequests.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
-        >
-          <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
-            <UserIcon size={18} className="text-brand-500" /> Pending Friend Requests
-            <span className="text-xs bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 px-2 py-0.5 rounded-full">{friendRequests.length}</span>
-          </h3>
-          <div className="space-y-2">
-            {friendRequests.map((req: any) => (
-              <div key={req.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                  {req.from_profile?.avatar_url ? (
-                    <img src={req.from_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
-                      {(req.from_profile?.name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                  )}
+      {/* ══════ FRIENDS SECTION ══════ */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+      >
+        {/* Header with tabs */}
+        <div className="flex items-center border-b border-slate-100 dark:border-slate-800">
+          <button
+            onClick={() => setFriendTab('friends')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all ${
+              friendTab === 'friends'
+                ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-brand-50/50 dark:bg-brand-950/20'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+            }`}
+          >
+            <Users size={16} />
+            Friends
+            <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{friends.length}</span>
+          </button>
+          <button
+            onClick={() => setFriendTab('requests')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all ${
+              friendTab === 'requests'
+                ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-brand-50/50 dark:bg-brand-950/20'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+            }`}
+          >
+            <UserPlus size={16} />
+            Requests
+            {friendRequests.length > 0 && (
+              <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center animate-pulse">{friendRequests.length}</span>
+            )}
+          </button>
+        </div>
+
+        <div className="p-5">
+          {/* ── FRIENDS TAB ── */}
+          {friendTab === 'friends' && (
+            <>
+              {friends.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users size={36} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No friends yet</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Search for users by username on the Leaderboard page to add friends!</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{req.from_profile?.name || 'Unknown'}</p>
-                  {req.from_profile?.username && (
-                    <p className="text-xs text-brand-500">@{req.from_profile.username}</p>
-                  )}
+              ) : (
+                <div className="space-y-2">
+                  {friends.map((f: any) => {
+                    const fId = f.friend_profile?.id
+                    const rank = fId ? friendRanks[fId] : null
+                    const isExpanded = expandedFriend === fId
+                    return (
+                      <div key={f.id} className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden transition-all">
+                        {/* Friend row — clickable */}
+                        <button
+                          onClick={() => setExpandedFriend(isExpanded ? null : fId)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition text-left"
+                        >
+                          {/* Avatar */}
+                          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-slate-100 dark:ring-slate-800">
+                            {f.friend_profile?.avatar_url ? (
+                              <img src={f.friend_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
+                                {(f.friend_profile?.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Name + username */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                              {f.friend_profile?.name || 'Unknown'}
+                            </p>
+                            {f.friend_profile?.username && (
+                              <p className="text-xs text-brand-500 dark:text-brand-400">@{f.friend_profile.username}</p>
+                            )}
+                          </div>
+
+                          {/* Rank badge */}
+                          {rank && (
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${
+                              rank <= 3
+                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
+                                : rank <= 10
+                                  ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            }`}>
+                              <Hash size={10} />
+                              {rank}
+                            </div>
+                          )}
+
+                          {/* XP */}
+                          <span className="text-xs text-slate-400 font-medium hidden sm:inline">⚡ {f.friend_profile?.xp_points || 0}</span>
+
+                          {/* Expand arrow */}
+                          <ChevronDown
+                            size={16}
+                            className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+
+                        {/* Expanded actions */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-4 pb-4 pt-1 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                                {/* Quick stats row */}
+                                <div className="w-full flex items-center gap-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                                  <span className="flex items-center gap-1"><Trophy size={12} className="text-amber-500" /> Rank #{rank || '—'}</span>
+                                  <span className="flex items-center gap-1"><Zap size={12} className="text-purple-500" /> {f.friend_profile?.xp_points || 0} XP</span>
+                                  <span className="flex items-center gap-1"><TrendingUp size={12} className="text-blue-500" /> Lv.{Math.floor((f.friend_profile?.xp_points || 0) / 100) + 1}</span>
+                                </div>
+
+                                {/* Action buttons */}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleViewFriendStats(fId) }}
+                                  disabled={statsLoading === fId}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-medium rounded-lg transition disabled:opacity-50"
+                                >
+                                  <BarChart3 size={13} />
+                                  {statsLoading === fId ? 'Loading...' : 'View Full Stats'}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleRemoveFriend(fId) }}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg transition"
+                                >
+                                  <Trash2 size={13} />
+                                  Remove Friend
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )
+                  })}
                 </div>
-                <button onClick={() => handleAcceptFriend(req.from_user_id)} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition">Accept</button>
-                <button onClick={() => handleRejectFriend(req.from_user_id)} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition">Decline</button>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+              )}
+            </>
+          )}
+
+          {/* ── REQUESTS TAB ── */}
+          {friendTab === 'requests' && (
+            <>
+              {friendRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserPlus size={36} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No pending requests</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">When someone sends you a friend request, it will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {friendRequests.map((req: any) => (
+                    <motion.div
+                      key={req.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-brand-50/60 to-purple-50/60 dark:from-brand-950/20 dark:to-purple-950/20 border border-brand-100 dark:border-brand-900/30"
+                    >
+                      {/* Avatar */}
+                      <div className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-brand-200 dark:ring-brand-800">
+                        {req.from_profile?.avatar_url ? (
+                          <img src={req.from_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
+                            {(req.from_profile?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                          {req.from_profile?.name || 'Unknown'}
+                        </p>
+                        {req.from_profile?.username && (
+                          <p className="text-xs text-brand-500 dark:text-brand-400">@{req.from_profile.username}</p>
+                        )}
+                        <p className="text-[10px] text-slate-400 mt-0.5">wants to be your friend</p>
+                      </div>
+
+                      {/* Accept / Decline */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleAcceptFriend(req.from_user_id)}
+                          className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition shadow-sm"
+                        >
+                          <Check size={13} />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRejectFriend(req.from_user_id)}
+                          className="flex items-center gap-1 px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-lg transition"
+                        >
+                          <X size={13} />
+                          Decline
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </motion.div>
 
       {/* Danger Zone - Delete Account */}
       <motion.div
@@ -730,58 +940,6 @@ export default function ProfilePage() {
                 Cancel
               </button>
             </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Friends List */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
-      >
-        <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
-          <UserIcon size={18} className="text-fuchsia-500" /> Friends
-          <span className="text-xs text-slate-400 ml-auto">{friends.length} friend{friends.length !== 1 ? 's' : ''}</span>
-        </h3>
-        {friends.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-6">No friends yet. Search for users by username on the Leaderboard page to add friends!</p>
-        ) : (
-          <div className="space-y-2">
-            {friends.map((f: any) => (
-              <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                  {f.friend_profile?.avatar_url ? (
-                    <img src={f.friend_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
-                      {(f.friend_profile?.name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{f.friend_profile?.name || 'Unknown'}</p>
-                  {f.friend_profile?.username && (
-                    <p className="text-xs text-brand-500">@{f.friend_profile.username}</p>
-                  )}
-                </div>
-                <span className="text-xs text-slate-400">⚡ {f.friend_profile?.xp_points || 0} XP</span>
-                <button
-                  onClick={() => handleViewFriendStats(f.friend_profile?.id)}
-                  disabled={statsLoading === f.friend_profile?.id}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 rounded hover:bg-brand-50 dark:hover:bg-brand-900/20 transition flex items-center gap-1 disabled:opacity-50"
-                >
-                  <Eye size={12} /> {statsLoading === f.friend_profile?.id ? '...' : 'Stats'}
-                </button>
-                <button
-                  onClick={() => handleRemoveFriend(f.friend_profile?.id)}
-                  className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </motion.div>
