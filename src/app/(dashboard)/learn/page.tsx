@@ -41,6 +41,7 @@ type Tab = 'videos' | 'books'
 interface VideoRec {
   query: string
   youtube_search_url: string
+  youtube_embed_url?: string
 }
 
 interface BookRec {
@@ -267,42 +268,50 @@ export default function LearnPage() {
                   <p className="text-sm text-slate-400">Try refreshing or selecting a different category</p>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-5 sm:grid-cols-2">
                   {videos.map((v, i) => (
-                    <motion.a
+                    <motion.div
                       key={i}
-                      href={v.youtube_search_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="group bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 hover:shadow-lg hover:border-red-300 dark:hover:border-red-800 transition-all"
+                      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all"
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                          <Play size={24} className="text-red-600 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-slate-800 dark:text-white text-sm group-hover:text-red-600 transition-colors">
-                            {v.query}
-                          </h4>
-                          <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                            <ExternalLink size={10} /> Opens YouTube search
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${CATEGORY_COLORS[selectedCategory]}`}>
-                              {CATEGORY_ICONS[selectedCategory]} {selectedCategory}
-                            </span>
-                          </div>
+                      {/* Embedded YouTube Player */}
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute inset-0 w-full h-full"
+                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.query)}`}
+                          title={v.query}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-semibold text-slate-800 dark:text-white text-sm">
+                          {v.query}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${CATEGORY_COLORS[selectedCategory]}`}>
+                            {CATEGORY_ICONS[selectedCategory]} {selectedCategory}
+                          </span>
+                          <a
+                            href={v.youtube_search_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-slate-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
+                          >
+                            <ExternalLink size={10} /> Open on YouTube
+                          </a>
                         </div>
                       </div>
-                    </motion.a>
+                    </motion.div>
                   ))}
                 </div>
               )}
               <p className="text-xs text-slate-400 text-center mt-4">
-                Click any card to search YouTube. Don&apos;t like these? Hit the refresh button for new suggestions!
+                Watch videos right here! Hit refresh for new suggestions.
               </p>
             </motion.div>
           ) : (

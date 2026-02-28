@@ -135,13 +135,17 @@ export default function ProfilePage() {
           setUsernameInput(p.username || '')
         }
 
-        // Check for new badges
+        // Check for new badges (also auto-seeds badge definitions)
         const awarded = await checkAndAwardBadges(authUser.id)
+        // Always reload badges after check (ensures seeded badges appear)
+        const [updatedUserBadges, updatedAllBadges] = await Promise.all([
+          getUserBadges(authUser.id),
+          getAllBadges(),
+        ])
+        setUserBadges(updatedUserBadges)
+        setAllBadges(updatedAllBadges)
         if (awarded.length > 0) {
           setNewBadges(awarded)
-          // Reload badges
-          const updatedBadges = await getUserBadges(authUser.id)
-          setUserBadges(updatedBadges)
         }
       } catch (err) {
         console.error('Profile load error:', err)

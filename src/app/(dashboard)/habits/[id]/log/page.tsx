@@ -204,6 +204,14 @@ export default function DailyLogPage() {
           <h2 className="text-lg font-semibold text-center text-slate-700 dark:text-slate-200 mb-6">
             Did you complete this habit today?
           </h2>
+
+          {/* Honesty Motivation */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-center mb-2">
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+              🧠 Be honest — only genuine effort rewires your brain. Fake check-ins = zero real progress.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => setStep('yes')}
@@ -391,6 +399,13 @@ export default function DailyLogPage() {
           <div className="text-6xl mb-2">🎉</div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Log Saved!</h2>
           <p className="text-slate-500 dark:text-slate-400">Your data has been recorded for your experiment.</p>
+
+          {/* Anti-fake motivation */}
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 max-w-sm mx-auto">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+              💪 Remember: Every honest log builds a real habit. Consistency with integrity is what creates lasting change — not just streaks on a screen.
+            </p>
+          </div>
 
           {/* XP Earned */}
           {xpEarned > 0 && (

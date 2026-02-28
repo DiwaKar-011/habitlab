@@ -634,46 +634,65 @@ export async function celebrateStreakMilestone(userId: string, habitId: string, 
 }
 
 // ── SEED BADGES (expanded) ──────────────────────────────────
+const BADGE_DEFINITIONS = [
+  // Streak badges
+  { id: 'streak_7', name: 'Flame Initiate', description: 'Survive a 7-day streak', icon_url: '🔥', condition: 'streak_7', category: 'streak', tier: 1 },
+  { id: 'streak_14', name: 'Blaze Runner', description: 'Forge a 14-day streak', icon_url: '🔥🔥', condition: 'streak_14', category: 'streak', tier: 2 },
+  { id: 'streak_30', name: 'Inferno Warden', description: 'Conquer a 30-day streak', icon_url: '🏆', condition: 'streak_30', category: 'streak', tier: 3 },
+  { id: 'streak_50', name: 'Phoenix Ascendant', description: 'Blaze through 50 days', icon_url: '⚡', condition: 'streak_50', category: 'streak', tier: 4 },
+  { id: 'streak_100', name: 'Eternal Flame Lord', description: 'Legendary 100-day streak', icon_url: '👑', condition: 'streak_100', category: 'streak', tier: 5 },
+  // Fitness badges
+  { id: 'fitness_10', name: 'Iron Recruit', description: 'Complete 10 fitness quests', icon_url: '💪', condition: 'fitness_10', category: 'fitness', tier: 1 },
+  { id: 'fitness_50', name: 'Steel Gladiator', description: 'Complete 50 fitness quests', icon_url: '🏋️', condition: 'fitness_50', category: 'fitness', tier: 2 },
+  { id: 'fitness_100', name: 'Titan of Strength', description: 'Complete 100 fitness quests', icon_url: '🥇', condition: 'fitness_100', category: 'fitness', tier: 3 },
+  // Study badges
+  { id: 'study_10', name: 'Scroll Seeker', description: 'Complete 10 study quests', icon_url: '📖', condition: 'study_10', category: 'study', tier: 1 },
+  { id: 'study_50', name: 'Lore Keeper', description: 'Complete 50 study quests', icon_url: '📚', condition: 'study_50', category: 'study', tier: 2 },
+  { id: 'study_100', name: 'Arcane Scholar', description: 'Complete 100 study quests', icon_url: '🎓', condition: 'study_100', category: 'study', tier: 3 },
+  // Mindset badges
+  { id: 'mindset_10', name: 'Mind Spark', description: 'Complete 10 mindset quests', icon_url: '🧠', condition: 'mindset_10', category: 'mindset', tier: 1 },
+  { id: 'mindset_50', name: 'Zen Overlord', description: 'Complete 50 mindset quests', icon_url: '🧘', condition: 'mindset_50', category: 'mindset', tier: 2 },
+  // Eco badges
+  { id: 'eco_10', name: 'Sapling Guardian', description: 'Complete 10 eco quests', icon_url: '🌱', condition: 'eco_10', category: 'eco', tier: 1 },
+  { id: 'eco_50', name: 'Earth Sentinel', description: 'Complete 50 eco quests', icon_url: '🌍', condition: 'eco_50', category: 'eco', tier: 2 },
+  // Health badges
+  { id: 'health_10', name: 'Vitality Spark', description: 'Complete 10 health quests', icon_url: '❤️', condition: 'health_10', category: 'health', tier: 1 },
+  { id: 'health_50', name: 'Heart Guardian', description: 'Complete 50 health quests', icon_url: '💖', condition: 'health_50', category: 'health', tier: 2 },
+  // Focus badges
+  { id: 'focus_10', name: 'Sharpshooter', description: 'Complete 10 focus quests', icon_url: '🎯', condition: 'focus_10', category: 'focus', tier: 1 },
+  { id: 'focus_50', name: 'Laser Mind', description: 'Complete 50 focus quests', icon_url: '🔬', condition: 'focus_50', category: 'focus', tier: 2 },
+  // Special badges
+  { id: 'consistency_90', name: 'Clockwork Phantom', description: '90%+ weekly completion', icon_url: '⏱️', condition: 'consistency_90', category: 'special', tier: 3 },
+  { id: 'experiment_complete', name: 'Lab Pioneer', description: 'Complete your first experiment', icon_url: '🧪', condition: 'experiment_complete', category: 'special', tier: 1 },
+  // Learning badges
+  { id: 'videos_5', name: 'Curious Wanderer', description: 'Watch 5 videos', icon_url: '📺', condition: 'videos_5', category: 'learning', tier: 1 },
+  { id: 'videos_10', name: 'Knowledge Sage', description: 'Watch 10 videos', icon_url: '📚', condition: 'videos_10', category: 'learning', tier: 2 },
+  // Social badges
+  { id: 'friend_1', name: 'Alliance Forged', description: 'Add your first friend', icon_url: '🤝', condition: 'friend_1', category: 'social', tier: 1 },
+  { id: 'friend_5', name: 'Guild Commander', description: 'Have 5 friends', icon_url: '👥', condition: 'friend_5', category: 'social', tier: 2 },
+  // XP badges
+  { id: 'xp_500', name: 'XP Scavenger', description: 'Earn 500 XP', icon_url: '⚡', condition: 'xp_500', category: 'xp', tier: 1 },
+  { id: 'xp_1000', name: 'XP Warlord', description: 'Earn 1000 XP', icon_url: '💫', condition: 'xp_1000', category: 'xp', tier: 2 },
+  { id: 'xp_5000', name: 'XP Demi-God', description: 'Earn 5000 XP', icon_url: '🌟', condition: 'xp_5000', category: 'xp', tier: 3 },
+  // First log badge
+  { id: 'first_log', name: 'Genesis Strike', description: 'Log your very first day', icon_url: '✨', condition: 'first_log', category: 'special', tier: 1 },
+  // Multi-habit badge
+  { id: 'multi_habit_3', name: 'Multi-Tasker', description: 'Run 3 active habits', icon_url: '🎪', condition: 'multi_habit_3', category: 'special', tier: 2 },
+]
+
 export async function seedBadges() {
-  const badges = [
-    // Streak badges
-    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon_url: '🔥', condition: 'streak_7', category: 'streak', tier: 1 },
-    { id: 'streak_14', name: 'Fortnight Fighter', description: '14-day streak', icon_url: '🔥🔥', condition: 'streak_14', category: 'streak', tier: 2 },
-    { id: 'streak_30', name: 'Monthly Master', description: '30-day streak', icon_url: '🏆', condition: 'streak_30', category: 'streak', tier: 3 },
-    { id: 'streak_50', name: 'Golden Streak', description: '50-day streak', icon_url: '⚡', condition: 'streak_50', category: 'streak', tier: 4 },
-    { id: 'streak_100', name: 'Century Legend', description: '100-day streak', icon_url: '👑', condition: 'streak_100', category: 'streak', tier: 5 },
-    // Category badges
-    { id: 'fitness_10', name: 'Fitness Starter', description: 'Complete 10 fitness tasks', icon_url: '💪', condition: 'fitness_10', category: 'fitness', tier: 1 },
-    { id: 'fitness_50', name: 'Fitness Pro', description: 'Complete 50 fitness tasks', icon_url: '🏋️', condition: 'fitness_50', category: 'fitness', tier: 2 },
-    { id: 'fitness_100', name: 'Fitness Legend', description: 'Complete 100 fitness tasks', icon_url: '🥇', condition: 'fitness_100', category: 'fitness', tier: 3 },
-    { id: 'study_10', name: 'Study Bug', description: 'Complete 10 study tasks', icon_url: '📖', condition: 'study_10', category: 'study', tier: 1 },
-    { id: 'study_50', name: 'Bookworm', description: 'Complete 50 study tasks', icon_url: '📚', condition: 'study_50', category: 'study', tier: 2 },
-    { id: 'study_100', name: 'Scholar Supreme', description: 'Complete 100 study tasks', icon_url: '🎓', condition: 'study_100', category: 'study', tier: 3 },
-    { id: 'mindset_10', name: 'Mind Opener', description: 'Complete 10 mindset tasks', icon_url: '🧠', condition: 'mindset_10', category: 'mindset', tier: 1 },
-    { id: 'mindset_50', name: 'Zen Master', description: 'Complete 50 mindset tasks', icon_url: '🧘', condition: 'mindset_50', category: 'mindset', tier: 2 },
-    { id: 'eco_10', name: 'Eco Starter', description: 'Complete 10 eco tasks', icon_url: '🌱', condition: 'eco_10', category: 'eco', tier: 1 },
-    { id: 'eco_50', name: 'Planet Protector', description: 'Complete 50 eco tasks', icon_url: '🌍', condition: 'eco_50', category: 'eco', tier: 2 },
-    { id: 'health_10', name: 'Health Seed', description: 'Complete 10 health tasks', icon_url: '❤️', condition: 'health_10', category: 'health', tier: 1 },
-    { id: 'health_50', name: 'Health Hero', description: 'Complete 50 health tasks', icon_url: '💖', condition: 'health_50', category: 'health', tier: 2 },
-    { id: 'focus_10', name: 'Focus Finder', description: 'Complete 10 focus tasks', icon_url: '🎯', condition: 'focus_10', category: 'focus', tier: 1 },
-    { id: 'focus_50', name: 'Laser Focus', description: 'Complete 50 focus tasks', icon_url: '🔬', condition: 'focus_50', category: 'focus', tier: 2 },
-    // Special badges
-    { id: 'consistency_90', name: 'Precision Performer', description: '90% weekly completion', icon_url: '🎯', condition: 'consistency_90', category: 'special', tier: 3 },
-    { id: 'experiment_complete', name: 'Experimenter', description: 'Complete first experiment', icon_url: '🧪', condition: 'experiment_complete', category: 'special', tier: 1 },
-    { id: 'videos_5', name: 'Curious Learner', description: 'Watch 5 videos', icon_url: '📺', condition: 'videos_5', category: 'learning', tier: 1 },
-    { id: 'videos_10', name: 'Knowledge Seeker', description: 'Watch 10 videos', icon_url: '📚', condition: 'videos_10', category: 'learning', tier: 2 },
-    { id: 'friend_1', name: 'Social Butterfly', description: 'Add your first friend', icon_url: '🤝', condition: 'friend_1', category: 'social', tier: 1 },
-    { id: 'friend_5', name: 'Squad Leader', description: 'Have 5 friends', icon_url: '👥', condition: 'friend_5', category: 'social', tier: 2 },
-    { id: 'xp_500', name: 'XP Hunter', description: 'Earn 500 XP', icon_url: '⚡', condition: 'xp_500', category: 'xp', tier: 1 },
-    { id: 'xp_1000', name: 'XP Master', description: 'Earn 1000 XP', icon_url: '💫', condition: 'xp_1000', category: 'xp', tier: 2 },
-    { id: 'xp_5000', name: 'XP Legend', description: 'Earn 5000 XP', icon_url: '🌟', condition: 'xp_5000', category: 'xp', tier: 3 },
-  ]
-  for (const b of badges) {
+  for (const b of BADGE_DEFINITIONS) {
     await setDoc(doc(db, 'badges', b.id), b, { merge: true })
   }
 }
 
 export async function checkAndAwardBadges(userId: string) {
+  // Auto-seed badges if they don't exist yet
+  const allBadgesSnap = await getDocs(collection(db, 'badges'))
+  if (allBadgesSnap.size < BADGE_DEFINITIONS.length) {
+    await seedBadges()
+  }
+
   const [profile, habits, logs, streaks, friends, watchLogs] = await Promise.all([
     getProfile(userId),
     getHabits(userId),
@@ -691,6 +710,7 @@ export async function checkAndAwardBadges(userId: string) {
   const maxStreak = Math.max(...streaks.map((s) => s.current_streak), 0)
   const completedLogs = logs.filter((l) => l.completed)
   const xp = profile.xp_points || 0
+  const activeHabits = habits.filter((h) => h.is_active).length
 
   // Category completion counts
   const catCounts: Record<string, number> = {}
@@ -738,6 +758,8 @@ export async function checkAndAwardBadges(userId: string) {
     ['xp_500', xp >= 500],
     ['xp_1000', xp >= 1000],
     ['xp_5000', xp >= 5000],
+    ['first_log', logs.length >= 1],
+    ['multi_habit_3', activeHabits >= 3],
   ]
 
   for (const [badgeId, earned] of checks) {

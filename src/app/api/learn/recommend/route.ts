@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
         recommendations: shuffled.slice(0, 4).map((q) => ({
           query: q,
           youtube_search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+          youtube_embed_url: `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}`,
         })),
         refreshed: true,
       })
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
       recommendations: shuffled.slice(0, 4).map((q) => ({
         query: q,
         youtube_search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        youtube_embed_url: `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}`,
       })),
     })
   } catch (error: any) {
