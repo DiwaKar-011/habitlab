@@ -318,7 +318,12 @@ export default function LeaderboardPage() {
                     )}
                   </div>
                 ))}
-                {searchResults.length === 0 && searchTerm && !searchLoading && <p className="text-center text-sm text-slate-400 py-4">No users found</p>}
+                {searchResults.length === 0 && searchTerm && !searchLoading && (
+                  <div className="text-center py-6 space-y-2">
+                    <p className="text-sm text-slate-500 font-medium">No users found for &quot;{searchTerm}&quot;</p>
+                    <p className="text-xs text-slate-400">Make sure you&apos;re typing the exact username or name.<br />Your friend must have a HabitLab account to be found.</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

@@ -607,28 +607,63 @@ export async function searchUsers(searchTerm: string, currentUserId: string): Pr
   if (!term) return []
   const results: User[] = []
   const seenIds = new Set<string>()
-
-  // 1) Exact username lookup (works regardless of is_public)
   const searchTermClean = term.startsWith('@') ? term.slice(1) : term
-  const exactMatch = await getUserByUsername(searchTermClean)
-  if (exactMatch && exactMatch.id !== currentUserId) {
-    results.push(exactMatch)
-    seenIds.add(exactMatch.id)
+
+  try {
+    // 1) Exact username lookup
+    const exactMatch = await getUserByUsername(searchTermClean)
+    if (exactMatch && exactMatch.id !== currentUserId) {
+      results.push(exactMatch)
+      seenIds.add(exactMatch.id)
+    }
+  } catch (err) {
+    console.warn('Exact username lookup failed:', err)
   }
 
-  // 2) Full scan of all profiles — match by username, name, or email
-  //    (No is_public filter so users can always be found by exact username)
-  const allSnap = await getDocs(collection(db, 'profiles'))
-  for (const d of allSnap.docs) {
-    const u = { id: d.id, ...d.data() } as User
-    if (u.id === currentUserId || seenIds.has(u.id)) continue
-    if (
-      u.username?.toLowerCase().includes(searchTermClean) ||
-      u.name?.toLowerCase().includes(term) ||
-      u.email?.toLowerCase().includes(term)
-    ) {
-      results.push(u)
-      seenIds.add(u.id)
+  try {
+    // 2) Full scan of all profiles — match by username, name, or email
+    const allSnap = await getDocs(collection(db, 'profiles'))
+    for (const d of allSnap.docs) {
+      const raw = d.data()
+      const u = { id: d.id, ...raw } as User
+      if (u.id === currentUserId || seenIds.has(u.id)) continue
+
+      const uName = (u.name || '').toLowerCase()
+      const uUsername = (u.username || '').toLowerCase()
+      const uEmail = (u.email || '').toLowerCase()
+      // Also check any extra display name fields
+      const uDisplayName = ((raw as any).display_name || (raw as any).displayName || '').toLowerCase()
+
+      if (
+        uUsername.includes(searchTermClean) ||
+        uName.includes(term) ||
+        uDisplayName.includes(term) ||
+        uEmail.includes(term)
+      ) {
+        results.push(u)
+        seenIds.add(u.id)
+      }
+    }
+  } catch (err) {
+    console.warn('Profile scan failed, trying name query:', err)
+    // 3) Fallback: try a targeted Firestore query by name
+    try {
+      const nameSnap = await getDocs(
+        query(collection(db, 'profiles'), firestoreLimit(200))
+      )
+      for (const d of nameSnap.docs) {
+        const raw = d.data()
+        const u = { id: d.id, ...raw } as User
+        if (u.id === currentUserId || seenIds.has(u.id)) continue
+        const uName = (u.name || '').toLowerCase()
+        const uUsername = (u.username || '').toLowerCase()
+        if (uUsername.includes(searchTermClean) || uName.includes(term)) {
+          results.push(u)
+          seenIds.add(u.id)
+        }
+      }
+    } catch (err2) {
+      console.error('All search methods failed:', err2)
     }
   }
 

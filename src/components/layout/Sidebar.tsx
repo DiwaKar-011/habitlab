@@ -67,7 +67,7 @@ export default function Sidebar() {
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-30 md:hidden"
+          className="fixed inset-0 bg-black/20 z-[45] md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -75,7 +75,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-[280px] sm:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 transition-transform duration-300 flex flex-col',
+          'fixed left-0 top-0 h-full w-[280px] sm:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-[46] transition-transform duration-300 flex flex-col',
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
@@ -167,6 +167,9 @@ export default function Sidebar() {
             Sign Out
           </button>
         </div>
+
+        {/* Extra spacing so sign out isn't hidden behind mobile bottom nav */}
+        <div className="h-20 md:h-0 flex-shrink-0" />
       </aside>
     </>
   )
