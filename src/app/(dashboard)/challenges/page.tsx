@@ -107,12 +107,12 @@ function addDays(d: Date, n: number) {
 
 /* ── Category badges ──────────────────────────────────────── */
 const categoryBadge: Record<string, { icon: string; color: string }> = {
-  fitness: { icon: 'FIT', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  focus:   { icon: 'FOC', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  eco:     { icon: 'ECO', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  study:   { icon: 'STD', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-  health:  { icon: 'HP', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' },
-  mindset: { icon: 'MND', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  fitness: { icon: '🏃', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  focus:   { icon: '🎯', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  eco:     { icon: '🌱', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  study:   { icon: '📚', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  health:  { icon: '❤️', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' },
+  mindset: { icon: '🧠', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 }
 
 type Tab = 'all' | 'joined' | 'ai'
@@ -436,12 +436,12 @@ function ChallengesContent() {
                       onChange={e => setFormCategory(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                     >
-                      <option value="fitness">Fitness</option>
-                      <option value="study">Study</option>
-                      <option value="focus">Focus</option>
-                      <option value="eco">Eco</option>
-                      <option value="health">Health</option>
-                      <option value="mindset">Mindset</option>
+                      <option value="fitness">🏃 Fitness</option>
+                      <option value="study">📚 Study</option>
+                      <option value="focus">🎯 Focus</option>
+                      <option value="eco">🌱 Eco</option>
+                      <option value="health">❤️ Health</option>
+                      <option value="mindset">🧠 Mindset</option>
                     </select>
                   </div>
                   <div>

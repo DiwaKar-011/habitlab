@@ -483,7 +483,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { icon: Zap, label: 'Total XP', value: totalXP.toLocaleString(), color: 'text-purple-500' },
-              { icon: Flame, label: 'Current Streak', value: `${maxStreak}d`, color: 'text-orange-500' },
+              { icon: Flame, label: 'Current Streak', value: `🔥${maxStreak}`, color: 'text-orange-500' },
               { icon: Target, label: 'Consistency', value: `${overallConsistency}%`, color: 'text-green-500' },
               { icon: Award, label: 'Badges', value: userBadges.length, color: 'text-amber-500' },
             ].map((stat, i) => (
@@ -513,7 +513,7 @@ export default function ProfilePage() {
           className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
         >
           <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
-            <Flame size={18} className="text-orange-500" /> Streak Overview
+            <Flame size={18} className="text-orange-500" /> 🔥 Streak Overview
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -626,7 +626,7 @@ export default function ProfilePage() {
                         </span>
                       )}
                       <span className={`text-2xl mb-1 ${earned ? '' : 'grayscale'}`}>
-                        {badge.icon_url || '--'}
+                        {badge.icon_url || '🏅'}
                       </span>
                       <p className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">
                         {badge.name}
@@ -744,7 +744,7 @@ export default function ProfilePage() {
                           )}
 
                           {/* XP */}
-                          <span className="text-xs text-slate-400 font-medium hidden sm:inline">{f.friend_profile?.xp_points || 0} XP</span>
+                          <span className="text-xs text-slate-400 font-medium hidden sm:inline">⚡ {f.friend_profile?.xp_points || 0} XP</span>
 
                           {/* Expand arrow */}
                           <ChevronDown
@@ -1083,9 +1083,9 @@ export default function ProfilePage() {
               </div>
               {statsToast.streaks?.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
-                  <Flame size={14} className="text-orange-500" />
+                  <span className="text-orange-500">🔥</span>
                   <span className="text-slate-600 dark:text-slate-300 font-medium">
-                    Best streak: {Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
+                    Best streak: 🔥{Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
                   </span>
                 </div>
               )}
@@ -1095,7 +1095,7 @@ export default function ProfilePage() {
                   <div className="flex flex-wrap gap-1.5">
                     {statsToast.badges.slice(0, 8).map((b: any) => (
                       <div key={b.id} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1 text-center" title={b.badge?.name}>
-                        <span className="text-sm">{b.badge?.icon_url || '--'}</span>
+                        <span className="text-sm">{b.badge?.icon_url || '🏅'}</span>
                         <p className="text-[8px] text-slate-500 truncate max-w-[50px]">{b.badge?.name}</p>
                       </div>
                     ))}
@@ -1119,7 +1119,7 @@ export default function ProfilePage() {
                             <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-[10px] text-slate-500 w-8 text-right">{pct}%</span>
-                          <span className="text-[10px] text-orange-400 w-8 text-right">{streak?.current_streak || 0}d</span>
+                          <span className="text-[10px] text-orange-400 w-8 text-right">🔥{streak?.current_streak || 0}</span>
                         </div>
                       )
                     })}

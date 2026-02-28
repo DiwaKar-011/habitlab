@@ -29,50 +29,51 @@ export const motivationQuotes = [
   "One day or day one. You decide.",
   "If it doesn't challenge you, it doesn't change you.",
   "Don't wish for it. Work for it.",
-  "Your habits today shape your future tomorrow.",
-  "Every neural pathway gets stronger with each repetition.",
+  "Every neural pathway gets stronger with each repetition. 🔬",
+  "🧠 Your habits today shape your future tomorrow.",
 ]
 
 export const funnyRoasts = [
-  "Bro, your streak just died... Even your pet rock has more consistency.",
-  "Your habit streak is looking like my bank account — zero.",
-  "Even a sloth moves more than your progress bar right now.",
-  "Your friend just crushed their habit. Meanwhile, you're reading this notification...",
-  "Plot twist: Your habit tracker has trust issues because you keep ghosting it.",
-  "If procrastination was an Olympic sport, you'd have a gold medal by now.",
-  "Your habit called. It said it misses you...",
-  "Breaking news: Local user discovers the 'Log Today' button still exists!",
-  "Even Monday is more productive than you today. Let that sink in.",
-  "Your streak disappeared faster than my attention span.",
-  "Hey, that habit isn't gonna complete itself. Unless... wait, no, it won't. Do it.",
-  "Fun fact: Your phone screen time is probably higher than your habit score today.",
-  "Your grandma could outperform your current streak. Just saying.",
-  "Warning: Your motivation has left the chat.",
-  "Your habit is collecting more dust than my bookshelf. Clean it up!",
+  "🪨 Bro, your streak just died... Even your pet rock has more consistency.",
+  "💸 Your habit streak is looking like my bank account — zero.",
+  "🦥 Even a sloth moves more than your progress bar right now.",
+  "👀 Your friend just crushed their habit. Meanwhile, you're reading this notification...",
+  "👻 Plot twist: Your habit tracker has trust issues because you keep ghosting it.",
+  "🥇 If procrastination was an Olympic sport, you'd have a gold medal by now.",
+  "📞 Your habit called. It said it misses you...",
+  "📰 Breaking news: Local user discovers the 'Log Today' button still exists!",
+  "🚰 Even Monday is more productive than you today. Let that sink in.",
+  "🔥 Your streak disappeared faster than my attention span.",
+  "💨 Hey, that habit isn't gonna complete itself. Unless... wait, no, it won't. Do it.",
+  "🫥 Fun fact: Your phone screen time is probably higher than your habit score today.",
+  "📱 Your grandma could outperform your current streak. Just saying.",
+  "🐵 Warning: Your motivation has left the chat.",
+  "💬 Your habit is collecting more dust than my bookshelf. Clean it up!",
+  "📚 Fun fact: reading about habits doesn't count as doing them.",
 ]
 
 export const friendComparisonMessages = [
-  "{friend} just completed their habit! Don't let them get too far ahead!",
-  "{friend} is on a {streak}-day streak. What's your excuse?",
-  "{friend} has {xp} XP more than you. Time to grind!",
-  "{friend} hasn't missed a day this week. Can you say the same?",
-  "{friend} just earned a new badge! Go earn yours!",
-  "{friend} is climbing the leaderboard. Are you going to let them win?",
+  "🏃 {friend} just completed their habit! Don't let them get too far ahead!",
+  "💪 {friend} is on a {streak}-day streak. What's your excuse?",
+  "⚡ {friend} has {xp} XP more than you. Time to grind!",
+  "🤔 {friend} hasn't missed a day this week. Can you say the same?",
+  "🏅 {friend} just earned a new badge! Go earn yours!",
+  "🏆 {friend} is climbing the leaderboard. Are you going to let them win?",
 ]
 
 export const streakCongrats: Record<number, string> = {
-  7: "AMAZING! 7-day streak! Your habit loop is forming! Your brain is literally rewiring itself!",
-  14: "TWO WEEKS! 14-day streak! The neural pathways are getting real strong! Keep it up!",
-  21: "THREE WEEKS! 21 days — the classic habit formation milestone! You're unstoppable!",
-  30: "ONE MONTH! 30-day streak! You're a habit machine! Scientists would be proud!",
-  50: "FIFTY DAYS! Half a century of consistency! You're in the top tier now!",
-  75: "75 DAYS! You're a diamond in the making! Three-quarters of the way to 100!",
-  100: "ONE HUNDRED DAYS! LEGENDARY! You've achieved what most people only dream about!",
-  150: "150 DAYS! You're not just building habits, you're building a legacy!",
-  200: "200 DAYS! At this point, the habit is part of your DNA!",
-  250: "250 DAYS! You're inspiring everyone around you. True habit scientist!",
-  300: "300 DAYS! You're basically a superhero at this point!",
-  365: "ONE YEAR! 365 DAYS! You've done the impossible. Standing ovation!",
+  7: "🔥 AMAZING! 7-day streak! Your habit loop is forming! Your brain is literally rewiring itself!",
+  14: "⚡ TWO WEEKS! 14-day streak! The neural pathways are getting real strong! Keep it up!",
+  21: "🏅 THREE WEEKS! 21 days — the classic habit formation milestone! You're unstoppable!",
+  30: "🏆 ONE MONTH! 30-day streak! You're a habit machine! Scientists would be proud!",
+  50: "👑 FIFTY DAYS! Half a century of consistency! You're in the top tier now!",
+  75: "💎 75 DAYS! You're a diamond in the making! Three-quarters of the way to 100!",
+  100: "🌟 ONE HUNDRED DAYS! LEGENDARY! You've achieved what most people only dream about!",
+  150: "⭐ 150 DAYS! You're not just building habits, you're building a legacy!",
+  200: "🔱 200 DAYS! At this point, the habit is part of your DNA!",
+  250: "🌈 250 DAYS! You're inspiring everyone around you. True habit scientist!",
+  300: "💫 300 DAYS! You're basically a superhero at this point!",
+  365: "🎆 ONE YEAR! 365 DAYS! You've done the impossible. Standing ovation! 👏",
 }
 
 export function getRandomQuote(): string {
@@ -95,7 +96,7 @@ export function getStreakMilestoneMessage(streak: number): string | null {
   // Check if this is a milestone (multiples of 50 after 100, or specific values)
   if (streakCongrats[streak]) return streakCongrats[streak]
   if (streak > 100 && streak % 50 === 0) {
-    return `${streak} DAYS! You're absolutely incredible! Every 50 days is a new victory!`
+    return `🌟 ${streak} DAYS! You're absolutely incredible! Every 50 days is a new victory!`
   }
   return null
 }

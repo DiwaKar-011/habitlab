@@ -53,7 +53,7 @@ export default function WeeklyComparisonChart({ habits, logs }: WeeklyComparison
 
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200">
-      <h3 className="text-sm font-medium text-slate-700 mb-4">This Week vs Last Week</h3>
+      <h3 className="text-sm font-medium text-slate-700 mb-4">📊 This Week vs Last Week</h3>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={data} barGap={4}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

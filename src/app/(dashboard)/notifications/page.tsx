@@ -75,7 +75,7 @@ export default function NotificationsPage() {
     if (result === 'granted') {
       setShowPermissionBanner(false)
       sendBrowserNotification(
-        'Notifications Enabled',
+        'Notifications Enabled! 🔔',
         'You\'ll now receive habit reminders and motivation. Let\'s crush it!'
       )
       // Also add an in-app notification
@@ -92,12 +92,12 @@ export default function NotificationsPage() {
     const roast = getRandomRoast()
     addNotification({
       type: 'roast',
-      title: 'Habit Roast',
+      title: 'Habit Roast 🔥',
       message: roast,
     })
     setNotifications(getNotifications())
     if (permissionStatus === 'granted') {
-      sendBrowserNotification('Habit Roast', roast)
+      sendBrowserNotification('Habit Roast 🔥', roast)
     }
   }
 
@@ -105,12 +105,12 @@ export default function NotificationsPage() {
     const quote = getRandomQuote()
     addNotification({
       type: 'motivation',
-      title: 'Motivation Boost',
+      title: 'Motivation Boost ✨',
       message: quote,
     })
     setNotifications(getNotifications())
     if (permissionStatus === 'granted') {
-      sendBrowserNotification('Motivation Boost', quote)
+      sendBrowserNotification('Motivation Boost ✨', quote)
     }
   }
 
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
         const msg = getFriendComparison(friendName, undefined, friendXP)
         addNotification({
           type: 'friend',
-          title: 'Friend Challenge',
+          title: 'Friend Challenge 👀',
           message: msg,
         })
       } else {
@@ -273,7 +273,7 @@ export default function NotificationsPage() {
             onClick={handleSendTestRoast}
             className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-3 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
           >
-            <MessageCircle size={14} /> Get Roasted
+            <MessageCircle size={14} /> 🔥 Get Roasted
           </button>
           <button
             onClick={handleSendFriendComparison}
@@ -395,7 +395,7 @@ export default function NotificationsPage() {
             <span className={`font-medium ${
               permissionStatus === 'granted' ? 'text-green-600' : permissionStatus === 'denied' ? 'text-red-500' : 'text-amber-500'
             }`}>
-              {permissionStatus === 'granted' ? 'Enabled' : permissionStatus === 'denied' ? 'Blocked' : 'Not set'}
+              {permissionStatus === 'granted' ? '✅ Enabled' : permissionStatus === 'denied' ? '❌ Blocked' : '⏳ Not set'}
             </span>
           </div>
           <div className="flex items-center justify-between">

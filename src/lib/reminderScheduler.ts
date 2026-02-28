@@ -74,14 +74,14 @@ function shouldFire(reminder: HabitReminder, now: Date, lastFired: Record<string
 }
 
 const motivationalMessages = [
-  "Time to work on your habit! Small steps lead to big changes.",
-  "Your brain is building new neural pathways — keep going!",
-  "Don't break the streak! Log your habit now.",
-  "Science says consistency beats intensity. You got this!",
-  "Your future self will thank you. Complete your habit!",
-  "Remember your hypothesis? Let's collect more data today.",
-  "The habit loop needs a trigger — this is yours!",
-  "Every repetition strengthens your neural pathway.",
+  "🧪 Time to work on your habit! Small steps lead to big changes.",
+  "🧠 Your brain is building new neural pathways — keep going!",
+  "🔥 Don't break the streak! Log your habit now.",
+  "💪 Science says consistency beats intensity. You got this!",
+  "⭐ Your future self will thank you. Complete your habit!",
+  "📊 Remember your hypothesis? Let's collect more data today.",
+  "🔔 The habit loop needs a trigger — this is yours!",
+  "🛤️ Every repetition strengthens your neural pathway.",
 ]
 
 function getRandomMessage(): string {
@@ -92,10 +92,10 @@ function getRoastOrMotivation(): { type: 'roast' | 'motivation' | 'reminder'; ti
   const roll = Math.random()
   if (roll < 0.25) {
     // 25% chance of roast
-    return { type: 'roast', title: 'Habit Roast', message: getRandomRoast() }
+    return { type: 'roast', title: 'Habit Roast 🔥', message: getRandomRoast() }
   } else if (roll < 0.5) {
     // 25% chance of motivation quote
-    return { type: 'motivation', title: 'Quick Motivation', message: getRandomQuote() }
+    return { type: 'motivation', title: '✨ Quick Motivation', message: getRandomQuote() }
   }
   // 50% normal reminder
   return { type: 'reminder', title: '', message: getRandomMessage() }

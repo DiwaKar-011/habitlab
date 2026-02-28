@@ -20,12 +20,12 @@ import { getHabits } from '@/lib/db'
 import type { Habit, HabitCategory } from '@/types'
 
 const CATEGORY_ICONS: Record<string, string> = {
-  fitness: 'FIT',
-  study: 'STD',
-  focus: 'FOC',
-  eco: 'ECO',
-  health: 'HP',
-  mindset: 'MND',
+  fitness: '🏋️',
+  study: '📚',
+  focus: '🎯',
+  eco: '🌱',
+  health: '❤️',
+  mindset: '🧠',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {

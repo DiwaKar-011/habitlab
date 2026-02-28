@@ -190,7 +190,7 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">
-                      {categoryIcons[habit.category] || 'GEN'}
+                      {categoryIcons[habit.category] || '📋'}
                     </span>
                     <div>
                       <Link

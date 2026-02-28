@@ -170,7 +170,7 @@ export default function HabitDetailPage() {
                   : 'bg-blue-50 text-blue-700 border border-blue-100'
               }`}
             >
-              {insight.type === 'success' ? '[OK]' : insight.type === 'warning' ? '[!]' : '[i]'}{' '}
+              {insight.type === 'success' ? '✅' : insight.type === 'warning' ? '⚠️' : 'ℹ️'}{' '}
               {insight.message}
             </div>
           ))}
@@ -181,7 +181,7 @@ export default function HabitDetailPage() {
       <div className="grid md:grid-cols-2 gap-4">
         <FailureChart reasons={failures.reasons} />
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
-          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Suggestions</h3>
+          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">💡 Suggestions</h3>
           <div className="space-y-2">
             {failures.suggestions.map((s, i) => (
               <div key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
@@ -192,7 +192,7 @@ export default function HabitDetailPage() {
           </div>
           {failures.weekendEffect && (
             <div className="mt-3 p-2 bg-amber-50 rounded-lg text-xs text-amber-700">
-              Weekend effect detected: You miss more on weekends.
+              📊 Weekend effect detected: You miss more on weekends.
             </div>
           )}
         </div>
@@ -204,7 +204,7 @@ export default function HabitDetailPage() {
           href={`/habits/${habitId}/log`}
           className="inline-flex items-center gap-2 bg-brand-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-brand-700 transition-all shadow-lg shadow-brand-500/20"
         >
-          Log Today&apos;s Entry
+          📝 Log Today&apos;s Entry
         </Link>
       </div>
     </div>

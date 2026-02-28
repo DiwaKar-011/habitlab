@@ -145,10 +145,10 @@ export const mockStreaks: Streak[] = [
 ]
 
 export const mockBadges: Badge[] = [
-  { id: '1', name: 'Consistency Starter', description: 'Complete a habit 7 days in a row', condition: 'streak_7', icon_url: 'S7' },
-  { id: '2', name: 'Habit Champion', description: 'Maintain a 30-day streak', condition: 'streak_30', icon_url: 'S30' },
-  { id: '3', name: 'Precision Performer', description: 'Achieve 90% weekly completion', condition: 'consistency_90', icon_url: '90%' },
-  { id: '6', name: 'Experimenter', description: 'Complete your first experiment', condition: 'experiment_complete', icon_url: 'LAB' },
+  { id: '1', name: 'Consistency Starter', description: 'Complete a habit 7 days in a row', condition: 'streak_7', icon_url: '🔥' },
+  { id: '2', name: 'Habit Champion', description: 'Maintain a 30-day streak', condition: 'streak_30', icon_url: '🏆' },
+  { id: '3', name: 'Precision Performer', description: 'Achieve 90% weekly completion', condition: 'consistency_90', icon_url: '🎯' },
+  { id: '6', name: 'Experimenter', description: 'Complete your first experiment', condition: 'experiment_complete', icon_url: '🧪' },
 ]
 
 export const mockUserBadges: UserBadge[] = [

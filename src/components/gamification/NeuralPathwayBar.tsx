@@ -24,7 +24,7 @@ export default function NeuralPathwayBar({ habitAge, totalCompletions }: NeuralP
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">Neural Pathway</span>
+        <span className="text-xs text-slate-500">🧬 Neural Pathway</span>
         <span className={`text-xs font-medium ${label.color}`}>{label.text}</span>
       </div>
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">

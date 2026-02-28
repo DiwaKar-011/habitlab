@@ -10,12 +10,12 @@ import { useAuth } from '@/components/AuthProvider'
 import type { HabitCategory } from '@/types'
 
 const categories = [
-  { value: 'fitness', label: 'Fitness', icon: 'FIT' },
-  { value: 'study', label: 'Study', icon: 'STD' },
-  { value: 'focus', label: 'Focus', icon: 'FOC' },
-  { value: 'eco', label: 'Eco', icon: 'ECO' },
-  { value: 'health', label: 'Health', icon: 'HP' },
-  { value: 'mindset', label: 'Mindset', icon: 'MND' },
+  { value: 'fitness', label: 'Fitness', icon: '🏋️' },
+  { value: 'study', label: 'Study', icon: '📚' },
+  { value: 'focus', label: 'Focus', icon: '🎯' },
+  { value: 'eco', label: 'Eco', icon: '🌱' },
+  { value: 'health', label: 'Health', icon: '❤️' },
+  { value: 'mindset', label: 'Mindset', icon: '🧠' },
 ]
 
 // ── Experiment Suggestions Database ──────────────────
