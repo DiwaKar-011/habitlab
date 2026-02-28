@@ -1,58 +1,129 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { User, Award, Zap, Target, BookOpen } from 'lucide-react'
-import { getHabits, getAllLogs, getAllStreaks, getUserBadges, getProfile } from '@/lib/db'
-import { assignPersonality } from '@/lib/profileEngine'
-import { calculateConsistency } from '@/lib/scoring'
+import { useEffect, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  User as UserIcon,
+  Camera,
+  Trophy,
+  Flame,
+  Zap,
+  Target,
+  Shield,
+  Star,
+  Award,
+  TrendingUp,
+  Calendar,
+  Edit3,
+  Check,
+  X,
+  ChevronRight,
+  Crown,
+  Medal,
+  Clock,
+} from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
-import type { Habit, DailyLog, Streak, UserBadge, Badge } from '@/types'
+import {
+  getProfile,
+  upsertProfile,
+  updateProfilePic,
+  getHabits,
+  getAllLogs,
+  getAllStreaks,
+  getUserBadges,
+  getAllBadges,
+  checkAndAwardBadges,
+} from '@/lib/db'
+import { calculateConsistency } from '@/lib/scoring'
+import { assignPersonality } from '@/lib/profileEngine'
+import type { User, Habit, DailyLog, Streak, Badge, UserBadge } from '@/types'
 
-const personalityIcons: Record<string, string> = {
-  'The Scientist': '🔬',
-  'The Performer': '🏅',
-  'The Night Owl': '🦉',
-  'The Scholar': '📚',
-  'The Eco Hero': '🌍',
+const AVATAR_OPTIONS = [
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Max',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Milo',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Bella',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Nala',
+  'https://api.dicebear.com/7.x/thumbs/svg?seed=Happy',
+  'https://api.dicebear.com/7.x/thumbs/svg?seed=Chill',
+  'https://api.dicebear.com/7.x/thumbs/svg?seed=Sunny',
+  'https://api.dicebear.com/7.x/thumbs/svg?seed=Cool',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Bot1',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Bot2',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Bot3',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Bot4',
+  'https://api.dicebear.com/7.x/pixel-art/svg?seed=Pixel1',
+  'https://api.dicebear.com/7.x/pixel-art/svg?seed=Pixel2',
+  'https://api.dicebear.com/7.x/pixel-art/svg?seed=Pixel3',
+  'https://api.dicebear.com/7.x/pixel-art/svg?seed=Pixel4',
+]
+
+const BADGE_CATEGORY_COLORS: Record<string, string> = {
+  streak: 'from-orange-400 to-red-500',
+  fitness: 'from-green-400 to-emerald-600',
+  study: 'from-blue-400 to-indigo-600',
+  mindset: 'from-purple-400 to-violet-600',
+  eco: 'from-teal-400 to-green-600',
+  health: 'from-pink-400 to-rose-600',
+  focus: 'from-amber-400 to-orange-600',
+  special: 'from-yellow-400 to-amber-600',
+  learning: 'from-cyan-400 to-blue-600',
+  social: 'from-fuchsia-400 to-pink-600',
+  xp: 'from-violet-400 to-purple-600',
 }
+
+const TIER_LABELS = ['', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']
+const TIER_COLORS = ['', 'text-amber-700', 'text-slate-400', 'text-yellow-500', 'text-cyan-400', 'text-blue-400']
 
 export default function ProfilePage() {
   const { user: authUser, loading: authLoading } = useAuth()
+  const [profile, setProfile] = useState<User | null>(null)
   const [habits, setHabits] = useState<Habit[]>([])
-  const [allLogs, setAllLogs] = useState<DailyLog[]>([])
+  const [logs, setLogs] = useState<DailyLog[]>([])
   const [streaks, setStreaks] = useState<Streak[]>([])
-  const [userBadges, setUserBadges] = useState<(UserBadge & { badge: Badge })[]>([])
-  const [xpPoints, setXpPoints] = useState(0)
-  const [knowledgeScore, setKnowledgeScore] = useState(0)
+  const [userBadges, setUserBadges] = useState<UserBadge[]>([])
+  const [allBadges, setAllBadges] = useState<Badge[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Build user info from Firebase auth
-  const displayName =
-    authUser?.displayName ||
-    authUser?.email?.split('@')[0] ||
-    'User'
-  const userEmail = authUser?.email || ''
-  const avatarUrl = authUser?.photoURL
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [newBadges, setNewBadges] = useState<string[]>([])
+  const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (authLoading) return
     if (!authUser) { setLoading(false); return }
+
     const load = async () => {
       try {
-        const [h, l, s, ub, p] = await Promise.all([
+        const [p, h, l, s, ub, ab] = await Promise.all([
+          getProfile(authUser.id),
           getHabits(authUser.id),
           getAllLogs(authUser.id),
           getAllStreaks(authUser.id),
           getUserBadges(authUser.id),
-          getProfile(authUser.id),
+          getAllBadges(),
         ])
+        setProfile(p)
         setHabits(h)
-        setAllLogs(l)
+        setLogs(l)
         setStreaks(s)
         setUserBadges(ub)
-        setXpPoints(p?.xp_points || 0)
-        setKnowledgeScore(p?.knowledge_score || 0)
+        setAllBadges(ab)
+        if (p) setNameInput(p.name || '')
+
+        // Check for new badges
+        const awarded = await checkAndAwardBadges(authUser.id)
+        if (awarded.length > 0) {
+          setNewBadges(awarded)
+          // Reload badges
+          const updatedBadges = await getUserBadges(authUser.id)
+          setUserBadges(updatedBadges)
+        }
       } catch (err) {
         console.error('Profile load error:', err)
       }
@@ -61,15 +132,72 @@ export default function ProfilePage() {
     load()
   }, [authUser, authLoading])
 
-  const personality = assignPersonality(habits, allLogs, knowledgeScore)
-  const totalCompleted = allLogs.filter((l) => l.completed).length
-  const totalLogs = allLogs.length
-  const consistency = calculateConsistency(totalCompleted, totalLogs)
+  const handleAvatarChange = async (url: string) => {
+    if (!authUser) return
+    setSaving(true)
+    try {
+      await updateProfilePic(authUser.id, url)
+      setProfile((p) => p ? { ...p, avatar_url: url } : p)
+      setShowAvatarPicker(false)
+    } catch (err) {
+      console.error('Error updating profile pic:', err)
+    }
+    setSaving(false)
+  }
 
-  // XP progress bar
-  const currentLevel = Math.floor(xpPoints / 100) + 1
-  const xpInLevel = xpPoints % 100
-  const xpNeeded = 100
+  const handleNameSave = async () => {
+    if (!authUser || !nameInput.trim()) return
+    setSaving(true)
+    try {
+      await upsertProfile({ id: authUser.id, name: nameInput.trim() })
+      setProfile((p) => p ? { ...p, name: nameInput.trim() } : p)
+      setEditingName(false)
+    } catch (err) {
+      console.error('Error updating name:', err)
+    }
+    setSaving(false)
+  }
+
+  // Computed stats
+  const completedLogs = logs.filter((l) => l.completed)
+  const totalTasks = logs.length
+  const overallConsistency = calculateConsistency(completedLogs.length, totalTasks)
+  const maxStreak = Math.max(...streaks.map((s) => s.current_streak), 0)
+  const longestStreak = Math.max(...streaks.map((s) => s.longest_streak), 0)
+  const totalXP = profile?.xp_points || 0
+  const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'
+
+  // Personality
+  const personality = habits.length > 0 ? assignPersonality(habits, logs, profile?.knowledge_score || 0) : null
+
+  // Category breakdown
+  const categoryStats: Record<string, { count: number; completed: number }> = {}
+  for (const log of logs) {
+    const habit = habits.find((h) => h.id === log.habit_id)
+    if (habit) {
+      if (!categoryStats[habit.category]) categoryStats[habit.category] = { count: 0, completed: 0 }
+      categoryStats[habit.category].count++
+      if (log.completed) categoryStats[habit.category].completed++
+    }
+  }
+
+  // Level system
+  const level = Math.floor(totalXP / 100) + 1
+  const xpInLevel = totalXP % 100
+  const xpToNext = 100 - xpInLevel
+
+  // Badge grouping
+  const earnedBadgeIds = new Set(userBadges.map((ub) => ub.badge_id))
+  const badgesByCategory: Record<string, { badge: any; earned: boolean }[]> = {}
+  for (const badge of allBadges) {
+    const cat = (badge as any).category || 'special'
+    if (!badgesByCategory[cat]) badgesByCategory[cat] = []
+    badgesByCategory[cat].push({ badge, earned: earnedBadgeIds.has(badge.id) })
+  }
+  // Sort each category by tier
+  for (const cat of Object.keys(badgesByCategory)) {
+    badgesByCategory[cat].sort((a, b) => ((a.badge as any).tier || 0) - ((b.badge as any).tier || 0))
+  }
 
   if (loading) {
     return (
@@ -80,141 +208,359 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Your Profile</h1>
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+      {/* New Badge Celebration */}
+      <AnimatePresence>
+        {newBadges.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 rounded-2xl p-6 text-white text-center relative"
+          >
+            <button onClick={() => setNewBadges([])} className="absolute top-3 right-3">
+              <X size={18} />
+            </button>
+            <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+              <Trophy className="mx-auto mb-2" size={48} />
+            </motion.div>
+            <h2 className="text-xl font-bold">New Badge{newBadges.length > 1 ? 's' : ''} Unlocked!</h2>
+            <div className="flex items-center justify-center gap-3 mt-3">
+              {newBadges.map((id) => {
+                const badge = allBadges.find((b) => b.id === id)
+                return badge ? (
+                  <span key={id} className="text-3xl" title={badge.name}>
+                    {badge.icon_url}
+                  </span>
+                ) : null
+              })}
+            </div>
+            <p className="text-sm mt-2 opacity-90">
+              {newBadges.map((id) => allBadges.find((b) => b.id === id)?.name).filter(Boolean).join(', ')}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Profile Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-brand-600 to-accent-600 rounded-2xl p-6 text-white"
+        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
       >
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl overflow-hidden">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+        {/* Banner */}
+        <div className="h-24 bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 relative">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="absolute bottom-1 right-4 text-white/70 text-xs">Level {level}</div>
+        </div>
+
+        <div className="px-6 pb-6">
+          {/* Avatar */}
+          <div className="relative -mt-12 mb-4">
+            <div className="relative inline-block">
+              <div className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-700 overflow-hidden shadow-lg">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl text-slate-400">
+                    <UserIcon size={40} />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowAvatarPicker(true)}
+                className="absolute bottom-0 right-0 w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-brand-700 transition-colors"
+              >
+                <Camera size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Name & Personality */}
+          <div className="mb-4">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={nameRef}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="text-xl font-bold bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
+                />
+                <button onClick={handleNameSave} disabled={saving} className="text-green-600 p-1"><Check size={18} /></button>
+                <button onClick={() => setEditingName(false)} className="text-slate-400 p-1"><X size={18} /></button>
+              </div>
             ) : (
-              <div className="w-full h-full bg-white/20 flex items-center justify-center">
-                {personalityIcons[personality.type] || '👤'}
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {profile?.name || authUser?.displayName || 'User'}
+                </h1>
+                <button onClick={() => { setEditingName(true); setNameInput(profile?.name || '') }} className="text-slate-400 hover:text-brand-600 transition-colors">
+                  <Edit3 size={14} />
+                </button>
+              </div>
+            )}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{profile?.email}</p>
+            {personality && (
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium px-3 py-1 rounded-full">
+                <Star size={12} />
+                {personality.type}
               </div>
             )}
           </div>
-          <div>
-            <h2 className="text-xl font-bold">{displayName}</h2>
-            <p className="text-brand-100 text-sm">{userEmail}</p>
-          </div>
-        </div>
 
-        {/* Personality Type */}
-        <div className="bg-white/10 rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-medium opacity-80 mb-1">Habit Personality</h3>
-          <p className="text-lg font-bold">{personality.type}</p>
-          <p className="text-sm opacity-80 mt-1">{personality.description}</p>
-        </div>
-
-        {/* XP Bar */}
-        <div>
-          <div className="flex items-center justify-between text-sm mb-1">
-            <span>Level {currentLevel}</span>
-            <span>{xpInLevel}/{xpNeeded} XP</span>
+          {/* Level Progress */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <span>Level {level}</span>
+              <span>{xpInLevel}/{100} XP to Level {level + 1}</span>
+            </div>
+            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${xpInLevel}%` }}
+                transition={{ duration: 1, ease: 'easeOut' }}
+                className="h-full bg-gradient-to-r from-brand-500 to-purple-500 rounded-full"
+              />
+            </div>
           </div>
-          <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-white rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${(xpInLevel / xpNeeded) * 100}%` }}
-              transition={{ duration: 1 }}
-            />
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { icon: Zap, label: 'Total XP', value: totalXP.toLocaleString(), color: 'text-purple-500' },
+              { icon: Flame, label: 'Current Streak', value: `${maxStreak}d`, color: 'text-orange-500' },
+              { icon: Target, label: 'Consistency', value: `${overallConsistency}%`, color: 'text-green-500' },
+              { icon: Award, label: 'Badges', value: userBadges.length, color: 'text-amber-500' },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * i }}
+                className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"
+              >
+                <stat.icon size={20} className={`mx-auto mb-1 ${stat.color}`} />
+                <p className="text-lg font-bold text-slate-800 dark:text-white">{stat.value}</p>
+                <p className="text-[10px] text-slate-400">{stat.label}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: Zap, label: 'Total XP', value: xpPoints, color: 'text-purple-500 bg-purple-50' },
-          { icon: Target, label: 'Consistency', value: `${consistency}%`, color: 'text-green-500 bg-green-50' },
-          { icon: Award, label: 'Badges', value: userBadges.length, color: 'text-amber-500 bg-amber-50' },
-          { icon: BookOpen, label: 'Knowledge', value: knowledgeScore, color: 'text-blue-500 bg-blue-50' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-2 ${stat.color} dark:bg-opacity-20`}>
-              <stat.icon size={20} />
+      {/* Detailed Stats */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Streak Details */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
+        >
+          <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
+            <Flame size={18} className="text-orange-500" /> Streak Overview
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Current Best</span>
+              <span className="font-bold text-slate-800 dark:text-white">{maxStreak} days</span>
             </div>
-            <p className="text-xl font-bold text-slate-800 dark:text-slate-100">{stat.value}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{stat.label}</p>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Longest Ever</span>
+              <span className="font-bold text-slate-800 dark:text-white">{longestStreak} days</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Active Habits</span>
+              <span className="font-bold text-slate-800 dark:text-white">{habits.filter((h) => h.is_active).length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Total Completions</span>
+              <span className="font-bold text-slate-800 dark:text-white">{completedLogs.length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Member Since</span>
+              <span className="font-bold text-slate-800 dark:text-white">{memberSince}</span>
+            </div>
           </div>
-        ))}
+        </motion.div>
+
+        {/* Category Breakdown */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
+        >
+          <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
+            <TrendingUp size={18} className="text-blue-500" /> Category Breakdown
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(categoryStats).map(([cat, stats]) => {
+              const pct = stats.count > 0 ? Math.round((stats.completed / stats.count) * 100) : 0
+              return (
+                <div key={cat}>
+                  <div className="flex justify-between items-center text-sm mb-1">
+                    <span className="capitalize text-slate-600 dark:text-slate-300">{cat}</span>
+                    <span className="text-xs text-slate-400">{stats.completed}/{stats.count} ({pct}%)</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-500 to-purple-500 rounded-full transition-all duration-700"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+            {Object.keys(categoryStats).length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-4">No habit data yet</p>
+            )}
+          </div>
+        </motion.div>
       </div>
 
-      {/* Badges */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">🏅 Badges Earned</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {userBadges.map((ub) => (
-            <div
-              key={ub.id}
-              className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-100 dark:border-amber-900/50 rounded-xl p-3 sm:p-4 text-center"
-            >
-              <span className="text-3xl">{ub.badge?.icon_url}</span>
-              <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm mt-2">{ub.badge?.name}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{ub.badge?.description}</p>
-            </div>
-          ))}
-          {/* Locked badges */}
-          {[
-            { name: 'Habit Champion', icon: '🏆', desc: 'Maintain a 30-day streak' },
-            { name: 'Precision Performer', icon: '🎯', desc: 'Achieve 90% weekly completion' },
-            { name: 'Scholar', icon: '📚', desc: 'Watch 10 habit videos' },
-          ].map((badge, i) => (
-            <div
-              key={i}
-              className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl p-3 sm:p-4 text-center opacity-50"
-            >
-              <span className="text-3xl grayscale">{badge.icon}</span>
-              <p className="font-semibold text-slate-500 dark:text-slate-400 text-sm mt-2">{badge.name}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{badge.desc}</p>
-              <span className="text-[10px] text-slate-300 dark:text-slate-600 mt-1 block">🔒 Locked</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Personality Card */}
+      {personality && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-100 dark:border-purple-800 p-5"
+        >
+          <h3 className="font-semibold text-purple-800 dark:text-purple-300 flex items-center gap-2 mb-2">
+            <Crown size={18} /> Your Personality: {personality.type}
+          </h3>
+          <p className="text-sm text-purple-600 dark:text-purple-400">{personality.description}</p>
+        </motion.div>
+      )}
 
-      {/* Habit Stats */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">📊 Habit Stats</h2>
-        <div className="space-y-3">
-          {habits.map((habit) => {
-            const logs = allLogs.filter((l) => l.habit_id === habit.id)
-            const completed = logs.filter((l) => l.completed).length
-            const pct = logs.length > 0 ? Math.round((completed / logs.length) * 100) : 0
-            const streak = streaks.find((s) => s.habit_id === habit.id)
+      {/* Badges Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
+      >
+        <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
+          <Medal size={18} className="text-amber-500" /> Badge Collection
+          <span className="text-xs text-slate-400 ml-auto">{userBadges.length}/{allBadges.length} earned</span>
+        </h3>
 
-            return (
-              <div key={habit.id} className="flex items-center gap-2 sm:gap-4">
-                <div className="w-20 sm:w-32 text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-                  {habit.title}
+        {Object.keys(badgesByCategory).length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8">No badges available yet. Complete habits to earn badges!</p>
+        ) : (
+          <div className="space-y-5">
+            {Object.entries(badgesByCategory).map(([category, items]) => (
+              <div key={category}>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 capitalize">{category}</h4>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {items.map(({ badge, earned }) => (
+                    <motion.div
+                      key={badge.id}
+                      whileHover={{ scale: 1.05 }}
+                      className={`relative flex flex-col items-center p-3 rounded-xl border transition-all ${
+                        earned
+                          ? 'bg-gradient-to-b from-white to-amber-50 dark:from-slate-800 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-50'
+                      }`}
+                    >
+                      {/* Tier indicator */}
+                      {(badge as any).tier && earned && (
+                        <span className={`absolute top-1 right-1 text-[8px] font-bold ${TIER_COLORS[(badge as any).tier] || ''}`}>
+                          {TIER_LABELS[(badge as any).tier] || ''}
+                        </span>
+                      )}
+                      <span className={`text-2xl mb-1 ${earned ? '' : 'grayscale'}`}>
+                        {badge.icon_url || '🏅'}
+                      </span>
+                      <p className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">
+                        {badge.name}
+                      </p>
+                      <p className="text-[8px] text-slate-400 text-center mt-0.5 leading-tight">
+                        {badge.description}
+                      </p>
+                      {earned && (
+                        <span className="mt-1 text-[8px] text-green-600 font-medium flex items-center gap-0.5">
+                          <Check size={8} /> Earned
+                        </span>
+                      )}
+                    </motion.div>
+                  ))}
                 </div>
-                <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-brand-500 rounded-full transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="text-xs text-slate-500 dark:text-slate-400 w-10 sm:w-12 text-right">{pct}%</span>
-                <span className="text-xs text-slate-400 dark:text-slate-500 w-14 sm:w-16 text-right">
-                  🔥 {streak?.current_streak || 0}d
-                </span>
               </div>
-            )
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Avatar Picker Modal */}
+      <AnimatePresence>
+        {showAvatarPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAvatarPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Choose Your Avatar</h3>
+                <button onClick={() => setShowAvatarPicker(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {AVATAR_OPTIONS.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleAvatarChange(url)}
+                    disabled={saving}
+                    className={`w-full aspect-square rounded-xl border-2 overflow-hidden hover:border-brand-500 transition-all hover:scale-105 ${
+                      profile?.avatar_url === url ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <img src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <p className="text-xs text-slate-400 text-center">Or paste a custom avatar URL:</p>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/avatar.png"
+                    className="flex-1 text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = (e.target as HTMLInputElement).value
+                        if (val.startsWith('http')) handleAvatarChange(val)
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={(e) => {
+                      const input = (e.currentTarget.previousElementSibling as HTMLInputElement)
+                      if (input.value.startsWith('http')) handleAvatarChange(input.value)
+                    }}
+                    className="bg-brand-600 text-white text-sm px-4 rounded-lg hover:bg-brand-700"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

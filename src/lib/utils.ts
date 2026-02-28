@@ -47,3 +47,29 @@ export const categoryIcons: Record<string, string> = {
   health: '❤️',
   mindset: '🧠',
 }
+
+// ─── Security: Input Sanitization ────────────────────
+export function sanitizeInput(input: string, maxLength = 500): string {
+  if (!input || typeof input !== 'string') return ''
+  // Strip HTML tags
+  const stripped = input.replace(/<[^>]*>/g, '')
+  // Remove potential script injection patterns
+  const cleaned = stripped.replace(/javascript:/gi, '').replace(/on\w+=/gi, '').replace(/data:/gi, '')
+  // Trim and limit length
+  return cleaned.trim().slice(0, maxLength)
+}
+
+export function sanitizeUrl(url: string): string {
+  if (!url || typeof url !== 'string') return ''
+  const trimmed = url.trim()
+  // Only allow http/https URLs
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return ''
+  // Block javascript: and data: URIs that might be embedded
+  if (trimmed.includes('javascript:') || trimmed.includes('data:')) return ''
+  return trimmed.slice(0, 2048)
+}
+
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}

@@ -190,7 +190,7 @@ export async function getAllStreaks(userId: string): Promise<Streak[]> {
   return snap.docs.map((d) => docToObj<Streak>(d))
 }
 
-async function recalculateStreak(habitId: string, userId: string) {
+export async function recalculateStreak(habitId: string, userId: string) {
   // Get all logs for this habit sorted descending
   const q = query(
     collection(db, 'daily_logs'),
@@ -401,4 +401,243 @@ export async function getParticipantCounts(): Promise<Record<string, number>> {
     counts[data.challenge_id] = (counts[data.challenge_id] || 0) + 1
   })
   return counts
+}
+
+// ── FRIENDS ─────────────────────────────────────────────────
+export async function sendFriendRequest(fromUserId: string, toUserId: string) {
+  const compositeId = [fromUserId, toUserId].sort().join('_')
+  await setDoc(doc(db, 'friend_requests', compositeId), {
+    from_user_id: fromUserId,
+    to_user_id: toUserId,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
+}
+
+export async function getFriendRequests(userId: string) {
+  const q = query(
+    collection(db, 'friend_requests'),
+    where('to_user_id', '==', userId),
+    where('status', '==', 'pending')
+  )
+  const snap = await getDocs(q)
+  const requests = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  // Populate sender profiles
+  const populated = []
+  for (const req of requests) {
+    const profile = await getProfile((req as any).from_user_id)
+    populated.push({ ...req, from_profile: profile })
+  }
+  return populated
+}
+
+export async function acceptFriendRequest(fromUserId: string, toUserId: string) {
+  const compositeId = [fromUserId, toUserId].sort().join('_')
+  await updateDoc(doc(db, 'friend_requests', compositeId), { status: 'accepted' })
+  // Create bidirectional friendship
+  const now = new Date().toISOString()
+  await setDoc(doc(db, 'friends', `${fromUserId}_${toUserId}`), {
+    user_id: fromUserId,
+    friend_id: toUserId,
+    created_at: now,
+  })
+  await setDoc(doc(db, 'friends', `${toUserId}_${fromUserId}`), {
+    user_id: toUserId,
+    friend_id: fromUserId,
+    created_at: now,
+  })
+}
+
+export async function rejectFriendRequest(fromUserId: string, toUserId: string) {
+  const compositeId = [fromUserId, toUserId].sort().join('_')
+  await updateDoc(doc(db, 'friend_requests', compositeId), { status: 'rejected' })
+}
+
+export async function removeFriend(userId: string, friendId: string) {
+  await deleteDoc(doc(db, 'friends', `${userId}_${friendId}`))
+  await deleteDoc(doc(db, 'friends', `${friendId}_${userId}`))
+  const compositeId = [userId, friendId].sort().join('_')
+  await deleteDoc(doc(db, 'friend_requests', compositeId))
+}
+
+export async function getFriends(userId: string): Promise<any[]> {
+  const q = query(collection(db, 'friends'), where('user_id', '==', userId))
+  const snap = await getDocs(q)
+  const friendships = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  // Populate friend profiles
+  const populated = []
+  for (const f of friendships) {
+    const profile = await getProfile((f as any).friend_id)
+    if (profile) populated.push({ ...f, friend_profile: profile })
+  }
+  return populated
+}
+
+export async function getFriendStats(friendId: string) {
+  const [profile, habits, logs, streaks, badges] = await Promise.all([
+    getProfile(friendId),
+    getHabits(friendId),
+    getAllLogs(friendId),
+    getAllStreaks(friendId),
+    getUserBadges(friendId),
+  ])
+  return { profile, habits, logs, streaks, badges }
+}
+
+export async function searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
+  // Search by name prefix (Firestore limitation - no full-text search)
+  const q = query(
+    collection(db, 'profiles'),
+    where('is_public', '==', true),
+    orderBy('name'),
+    firestoreLimit(20)
+  )
+  const snap = await getDocs(q)
+  const allUsers = snap.docs.map((d) => docToObj<User>(d))
+  // Client-side filter for name match
+  const term = searchTerm.toLowerCase()
+  return allUsers.filter(
+    (u) => u.id !== currentUserId && (u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term))
+  )
+}
+
+// ── PROFILE PIC ─────────────────────────────────────────────
+export async function updateProfilePic(userId: string, avatarUrl: string) {
+  await updateDoc(doc(db, 'profiles', userId), { avatar_url: avatarUrl })
+}
+
+// ── STREAK MILESTONES ───────────────────────────────────────
+export async function getStreakMilestones(userId: string): Promise<Record<string, number[]>> {
+  const snap = await getDoc(doc(db, 'streak_milestones', userId))
+  if (!snap.exists()) return {}
+  return snap.data() as Record<string, number[]>
+}
+
+export async function celebrateStreakMilestone(userId: string, habitId: string, milestone: number) {
+  const existing = await getStreakMilestones(userId)
+  const habitMilestones = existing[habitId] || []
+  if (!habitMilestones.includes(milestone)) {
+    habitMilestones.push(milestone)
+    await setDoc(doc(db, 'streak_milestones', userId), {
+      ...existing,
+      [habitId]: habitMilestones,
+    }, { merge: true })
+  }
+}
+
+// ── SEED BADGES (expanded) ──────────────────────────────────
+export async function seedBadges() {
+  const badges = [
+    // Streak badges
+    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon_url: '🔥', condition: 'streak_7', category: 'streak', tier: 1 },
+    { id: 'streak_14', name: 'Fortnight Fighter', description: '14-day streak', icon_url: '🔥🔥', condition: 'streak_14', category: 'streak', tier: 2 },
+    { id: 'streak_30', name: 'Monthly Master', description: '30-day streak', icon_url: '🏆', condition: 'streak_30', category: 'streak', tier: 3 },
+    { id: 'streak_50', name: 'Golden Streak', description: '50-day streak', icon_url: '⚡', condition: 'streak_50', category: 'streak', tier: 4 },
+    { id: 'streak_100', name: 'Century Legend', description: '100-day streak', icon_url: '👑', condition: 'streak_100', category: 'streak', tier: 5 },
+    // Category badges
+    { id: 'fitness_10', name: 'Fitness Starter', description: 'Complete 10 fitness tasks', icon_url: '💪', condition: 'fitness_10', category: 'fitness', tier: 1 },
+    { id: 'fitness_50', name: 'Fitness Pro', description: 'Complete 50 fitness tasks', icon_url: '🏋️', condition: 'fitness_50', category: 'fitness', tier: 2 },
+    { id: 'fitness_100', name: 'Fitness Legend', description: 'Complete 100 fitness tasks', icon_url: '🥇', condition: 'fitness_100', category: 'fitness', tier: 3 },
+    { id: 'study_10', name: 'Study Bug', description: 'Complete 10 study tasks', icon_url: '📖', condition: 'study_10', category: 'study', tier: 1 },
+    { id: 'study_50', name: 'Bookworm', description: 'Complete 50 study tasks', icon_url: '📚', condition: 'study_50', category: 'study', tier: 2 },
+    { id: 'study_100', name: 'Scholar Supreme', description: 'Complete 100 study tasks', icon_url: '🎓', condition: 'study_100', category: 'study', tier: 3 },
+    { id: 'mindset_10', name: 'Mind Opener', description: 'Complete 10 mindset tasks', icon_url: '🧠', condition: 'mindset_10', category: 'mindset', tier: 1 },
+    { id: 'mindset_50', name: 'Zen Master', description: 'Complete 50 mindset tasks', icon_url: '🧘', condition: 'mindset_50', category: 'mindset', tier: 2 },
+    { id: 'eco_10', name: 'Eco Starter', description: 'Complete 10 eco tasks', icon_url: '🌱', condition: 'eco_10', category: 'eco', tier: 1 },
+    { id: 'eco_50', name: 'Planet Protector', description: 'Complete 50 eco tasks', icon_url: '🌍', condition: 'eco_50', category: 'eco', tier: 2 },
+    { id: 'health_10', name: 'Health Seed', description: 'Complete 10 health tasks', icon_url: '❤️', condition: 'health_10', category: 'health', tier: 1 },
+    { id: 'health_50', name: 'Health Hero', description: 'Complete 50 health tasks', icon_url: '💖', condition: 'health_50', category: 'health', tier: 2 },
+    { id: 'focus_10', name: 'Focus Finder', description: 'Complete 10 focus tasks', icon_url: '🎯', condition: 'focus_10', category: 'focus', tier: 1 },
+    { id: 'focus_50', name: 'Laser Focus', description: 'Complete 50 focus tasks', icon_url: '🔬', condition: 'focus_50', category: 'focus', tier: 2 },
+    // Special badges
+    { id: 'consistency_90', name: 'Precision Performer', description: '90% weekly completion', icon_url: '🎯', condition: 'consistency_90', category: 'special', tier: 3 },
+    { id: 'experiment_complete', name: 'Experimenter', description: 'Complete first experiment', icon_url: '🧪', condition: 'experiment_complete', category: 'special', tier: 1 },
+    { id: 'videos_5', name: 'Curious Learner', description: 'Watch 5 videos', icon_url: '📺', condition: 'videos_5', category: 'learning', tier: 1 },
+    { id: 'videos_10', name: 'Knowledge Seeker', description: 'Watch 10 videos', icon_url: '📚', condition: 'videos_10', category: 'learning', tier: 2 },
+    { id: 'friend_1', name: 'Social Butterfly', description: 'Add your first friend', icon_url: '🤝', condition: 'friend_1', category: 'social', tier: 1 },
+    { id: 'friend_5', name: 'Squad Leader', description: 'Have 5 friends', icon_url: '👥', condition: 'friend_5', category: 'social', tier: 2 },
+    { id: 'xp_500', name: 'XP Hunter', description: 'Earn 500 XP', icon_url: '⚡', condition: 'xp_500', category: 'xp', tier: 1 },
+    { id: 'xp_1000', name: 'XP Master', description: 'Earn 1000 XP', icon_url: '💫', condition: 'xp_1000', category: 'xp', tier: 2 },
+    { id: 'xp_5000', name: 'XP Legend', description: 'Earn 5000 XP', icon_url: '🌟', condition: 'xp_5000', category: 'xp', tier: 3 },
+  ]
+  for (const b of badges) {
+    await setDoc(doc(db, 'badges', b.id), b, { merge: true })
+  }
+}
+
+export async function checkAndAwardBadges(userId: string) {
+  const [profile, habits, logs, streaks, friends, watchLogs] = await Promise.all([
+    getProfile(userId),
+    getHabits(userId),
+    getAllLogs(userId),
+    getAllStreaks(userId),
+    getFriends(userId),
+    getVideoWatchLogs(userId),
+  ])
+  if (!profile) return []
+
+  const existingBadges = await getUserBadges(userId)
+  const existingIds = existingBadges.map((b) => b.badge_id)
+  const newlyAwarded: string[] = []
+
+  const maxStreak = Math.max(...streaks.map((s) => s.current_streak), 0)
+  const completedLogs = logs.filter((l) => l.completed)
+  const xp = profile.xp_points || 0
+
+  // Category completion counts
+  const catCounts: Record<string, number> = {}
+  for (const log of completedLogs) {
+    const habit = habits.find((h) => h.id === log.habit_id)
+    if (habit) {
+      catCounts[habit.category] = (catCounts[habit.category] || 0) + 1
+    }
+  }
+
+  // Weekly consistency
+  const last7 = logs.filter((l) => {
+    const d = new Date(l.log_date)
+    const now = new Date()
+    return (now.getTime() - d.getTime()) / 86400000 <= 7
+  })
+  const weeklyConsistency = last7.length > 0 ? (last7.filter((l) => l.completed).length / last7.length) * 100 : 0
+
+  const checks: [string, boolean][] = [
+    ['streak_7', maxStreak >= 7],
+    ['streak_14', maxStreak >= 14],
+    ['streak_30', maxStreak >= 30],
+    ['streak_50', maxStreak >= 50],
+    ['streak_100', maxStreak >= 100],
+    ['fitness_10', (catCounts['fitness'] || 0) >= 10],
+    ['fitness_50', (catCounts['fitness'] || 0) >= 50],
+    ['fitness_100', (catCounts['fitness'] || 0) >= 100],
+    ['study_10', (catCounts['study'] || 0) >= 10],
+    ['study_50', (catCounts['study'] || 0) >= 50],
+    ['study_100', (catCounts['study'] || 0) >= 100],
+    ['mindset_10', (catCounts['mindset'] || 0) >= 10],
+    ['mindset_50', (catCounts['mindset'] || 0) >= 50],
+    ['eco_10', (catCounts['eco'] || 0) >= 10],
+    ['eco_50', (catCounts['eco'] || 0) >= 50],
+    ['health_10', (catCounts['health'] || 0) >= 10],
+    ['health_50', (catCounts['health'] || 0) >= 50],
+    ['focus_10', (catCounts['focus'] || 0) >= 10],
+    ['focus_50', (catCounts['focus'] || 0) >= 50],
+    ['consistency_90', weeklyConsistency >= 90],
+    ['experiment_complete', habits.some((h) => logs.filter((l) => l.habit_id === h.id && l.completed).length >= h.target_days)],
+    ['videos_5', watchLogs.length >= 5],
+    ['videos_10', watchLogs.length >= 10],
+    ['friend_1', friends.length >= 1],
+    ['friend_5', friends.length >= 5],
+    ['xp_500', xp >= 500],
+    ['xp_1000', xp >= 1000],
+    ['xp_5000', xp >= 5000],
+  ]
+
+  for (const [badgeId, earned] of checks) {
+    if (earned && !existingIds.includes(badgeId)) {
+      await awardBadge(userId, badgeId)
+      newlyAwarded.push(badgeId)
+    }
+  }
+
+  return newlyAwarded
 }

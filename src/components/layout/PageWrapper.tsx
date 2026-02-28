@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import { useAuth } from '@/components/AuthProvider'
+import MotivationBubble from '@/components/gamification/MotivationBubble'
 
 const bottomNavItems = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -48,6 +49,9 @@ export default function PageWrapper({
           {children}
         </div>
       </main>
+
+      {/* Random Motivation Bubble */}
+      {user && !isGuest && <MotivationBubble />}
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 md:hidden safe-bottom">

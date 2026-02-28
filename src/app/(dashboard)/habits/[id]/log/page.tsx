@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, CheckCircle, XCircle, Smile, Frown, Meh } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Smile, Frown, Meh, Sparkles, TrendingUp, Flame, Trophy } from 'lucide-react'
 import Link from 'next/link'
-import { getHabit, getStreak, createLog } from '@/lib/db'
+import { getHabit, getStreak, createLog, recalculateStreak, updateProfileXP, checkAndAwardBadges, celebrateStreakMilestone } from '@/lib/db'
+import { addNotification, sendBrowserNotification, getPermissionStatus } from '@/lib/notificationStore'
+import { predictHabitBenefits, getStreakMilestoneMessage, getRandomRoast } from '@/lib/motivationQuotes'
+import { calculateXPForLog } from '@/lib/scoring'
 import { useAuth } from '@/components/AuthProvider'
 import type { Habit, Streak } from '@/types'
 
@@ -42,6 +45,10 @@ export default function DailyLogPage() {
   const [failureReason, setFailureReason] = useState('')
   const [failureNotes, setFailureNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [prediction, setPrediction] = useState<{ nextMilestone: number; benefits: string[]; scienceFact: string } | null>(null)
+  const [milestoneMessage, setMilestoneMessage] = useState<string | null>(null)
+  const [newBadgeIds, setNewBadgeIds] = useState<string[]>([])
+  const [xpEarned, setXpEarned] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -74,18 +81,81 @@ export default function DailyLogPage() {
     setLoading(true)
     try {
       const today = new Date().toISOString().split('T')[0]
+      const completed = step === 'yes'
       await createLog({
         habit_id: habitId,
         user_id: user.id,
         log_date: today,
-        completed: step === 'yes',
-        completion_time: step === 'yes' ? completionTime || undefined : undefined,
+        completed,
+        completion_time: completed ? completionTime || undefined : undefined,
         mood_rating: moodRating,
-        energy_rating: step === 'yes' ? energyRating : undefined,
+        energy_rating: completed ? energyRating : undefined,
         notes: notes || undefined,
-        failure_reason: step === 'no' ? failureReason || undefined : undefined,
-        failure_notes: step === 'no' ? failureNotes || undefined : undefined,
+        failure_reason: !completed ? failureReason || undefined : undefined,
+        failure_notes: !completed ? failureNotes || undefined : undefined,
       })
+
+      // Recalculate streak
+      await recalculateStreak(habitId, user.id)
+      const updatedStreakData = await getStreak(habitId)
+      const newStreakCount = updatedStreakData?.current_streak || (streak?.current_streak || 0) + (completed ? 1 : 0)
+
+      // Award XP
+      const xp = calculateXPForLog(completed, newStreakCount)
+      if (xp > 0) {
+        await updateProfileXP(user.id, xp)
+        setXpEarned(xp)
+      }
+
+      // Check streak milestones
+      if (completed) {
+        const msg = getStreakMilestoneMessage(newStreakCount)
+        if (msg) {
+          setMilestoneMessage(msg)
+          await celebrateStreakMilestone(user.id, habitId, newStreakCount)
+          addNotification({
+            type: 'streak',
+            title: `${newStreakCount}-Day Streak!`,
+            message: msg,
+            habit_id: habitId,
+          })
+          if (getPermissionStatus() === 'granted') {
+            sendBrowserNotification(`🔥 ${newStreakCount}-Day Streak!`, msg)
+          }
+        }
+
+        // Habit continuation prediction
+        if (habit) {
+          const pred = predictHabitBenefits(habit.category, newStreakCount)
+          setPrediction(pred)
+        }
+      } else {
+        // Send a roast for missed day
+        const roast = getRandomRoast()
+        addNotification({
+          type: 'roast',
+          title: 'Missed Day Roast 🔥',
+          message: roast,
+          habit_id: habitId,
+        })
+        if (getPermissionStatus() === 'granted') {
+          sendBrowserNotification('Missed Day? 👀', roast)
+        }
+      }
+
+      // Check for new badges
+      const awarded = await checkAndAwardBadges(user.id)
+      if (awarded.length > 0) {
+        setNewBadgeIds(awarded)
+        for (const badgeId of awarded) {
+          addNotification({
+            type: 'badge',
+            title: 'New Badge Earned! 🏅',
+            message: `You earned the "${badgeId}" badge!`,
+          })
+        }
+      }
+
       setStep('done')
     } catch (err) {
       console.error('Failed to log', err)
@@ -303,11 +373,94 @@ export default function DailyLogPage() {
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="text-center py-12"
+          className="text-center space-y-4"
         >
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Log Saved!</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">Your data has been recorded for your experiment.</p>
+          <div className="text-6xl mb-2">🎉</div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Log Saved!</h2>
+          <p className="text-slate-500 dark:text-slate-400">Your data has been recorded for your experiment.</p>
+
+          {/* XP Earned */}
+          {xpEarned > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-full font-semibold text-sm"
+            >
+              <Sparkles size={16} /> +{xpEarned} XP earned!
+            </motion.div>
+          )}
+
+          {/* Streak Milestone Celebration */}
+          {milestoneMessage && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg"
+            >
+              <motion.div
+                animate={{ rotate: [0, -5, 5, -5, 0] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-4xl mb-2"
+              >
+                <Flame className="mx-auto" size={40} />
+              </motion.div>
+              <p className="text-lg font-bold">{milestoneMessage}</p>
+            </motion.div>
+          )}
+
+          {/* Badge Earned */}
+          {newBadgeIds.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-gradient-to-r from-yellow-400 to-amber-500 rounded-xl p-4 text-white"
+            >
+              <Trophy className="mx-auto mb-1" size={28} />
+              <p className="font-bold">New Badge{newBadgeIds.length > 1 ? 's' : ''} Earned!</p>
+              <p className="text-sm opacity-90">{newBadgeIds.join(', ')}</p>
+            </motion.div>
+          )}
+
+          {/* Habit Continuation Prediction */}
+          {prediction && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 text-left"
+            >
+              <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
+                <TrendingUp size={18} className="text-green-500" />
+                If you keep going to day {prediction.nextMilestone}...
+              </h3>
+              <ul className="space-y-1.5">
+                {prediction.benefits.map((b, i) => (
+                  <motion.li
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 1 + i * 0.15 }}
+                    className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300"
+                  >
+                    <span className="text-green-500 mt-0.5">✓</span>
+                    {b}
+                  </motion.li>
+                ))}
+              </ul>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+                className="mt-3 text-xs text-slate-400 italic border-t border-slate-100 dark:border-slate-800 pt-2"
+              >
+                🧠 {prediction.scienceFact}
+              </motion.p>
+            </motion.div>
+          )}
+
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition-all"

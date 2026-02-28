@@ -155,6 +155,31 @@ export interface ChallengeParticipant {
   last_check_in?: string
 }
 
+// Friend system
+export interface FriendRequest {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+}
+
+export interface Friend {
+  id: string
+  user_id: string
+  friend_id: string
+  created_at: string
+  // populated
+  friend_profile?: User
+}
+
+// Streak milestone
+export interface StreakMilestone {
+  streak: number
+  celebrated: boolean
+  celebrated_at?: string
+}
+
 // Notification & Reminder types
 export type ReminderFrequency = 'once' | 'every_30min' | 'every_1hr' | 'every_2hr' | 'every_4hr' | 'custom'
 
@@ -173,10 +198,37 @@ export interface HabitReminder {
 
 export interface AppNotification {
   id: string
-  type: 'reminder' | 'streak' | 'badge' | 'challenge' | 'system'
+  type: 'reminder' | 'streak' | 'badge' | 'challenge' | 'system' | 'motivation' | 'roast' | 'friend'
   title: string
   message: string
   habit_id?: string
   read: boolean
   created_at: string
+}
+
+// Badge tiers
+export interface BadgeTier {
+  level: number
+  name: string
+  icon: string
+  requirement: number
+}
+
+// Learn recommendation
+export interface LearnRecommendation {
+  type: 'video' | 'book' | 'audiobook'
+  title: string
+  url?: string
+  youtube_id?: string
+  author?: string
+  description: string
+  category: string
+  thumbnail?: string
+}
+
+// Habit prediction
+export interface HabitPrediction {
+  days_continued: number
+  benefits: string[]
+  science_fact: string
 }

@@ -7,6 +7,7 @@ import {
   addNotification,
   sendBrowserNotification,
 } from './notificationStore'
+import { getRandomQuote, getRandomRoast } from './motivationQuotes'
 
 const LAST_FIRED_KEY = 'habitlab_reminder_last_fired'
 
@@ -87,6 +88,19 @@ function getRandomMessage(): string {
   return motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)]
 }
 
+function getRoastOrMotivation(): { type: 'roast' | 'motivation' | 'reminder'; title: string; message: string } {
+  const roll = Math.random()
+  if (roll < 0.25) {
+    // 25% chance of roast
+    return { type: 'roast', title: 'Habit Roast 🔥', message: getRandomRoast() }
+  } else if (roll < 0.5) {
+    // 25% chance of motivation quote
+    return { type: 'motivation', title: 'Quick Motivation ✨', message: getRandomQuote() }
+  }
+  // 50% normal reminder
+  return { type: 'reminder', title: '', message: getRandomMessage() }
+}
+
 let intervalId: ReturnType<typeof setInterval> | null = null
 
 export function checkAndFireReminders() {
@@ -96,19 +110,20 @@ export function checkAndFireReminders() {
 
   for (const reminder of reminders) {
     if (shouldFire(reminder, now, lastFired)) {
+      const variation = getRoastOrMotivation()
+      const notifTitle = variation.type === 'reminder' ? `⏰ ${reminder.habit_title}` : variation.title
+      const notifMessage = variation.message
+
       // Fire in-app notification
       addNotification({
-        type: 'reminder',
-        title: `⏰ ${reminder.habit_title}`,
-        message: getRandomMessage(),
+        type: variation.type,
+        title: notifTitle,
+        message: notifMessage,
         habit_id: reminder.habit_id,
       })
 
       // Fire browser notification
-      sendBrowserNotification(
-        `⏰ ${reminder.habit_title}`,
-        getRandomMessage()
-      )
+      sendBrowserNotification(notifTitle, notifMessage)
 
       setLastFired(reminder.id, now.getTime())
     }

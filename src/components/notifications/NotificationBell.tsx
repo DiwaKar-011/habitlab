@@ -68,6 +68,9 @@ export default function NotificationBell() {
     badge: 'bg-purple-100 text-purple-700',
     challenge: 'bg-green-100 text-green-700',
     system: 'bg-slate-100 text-slate-700',
+    motivation: 'bg-violet-100 text-violet-700',
+    roast: 'bg-red-100 text-red-700',
+    friend: 'bg-pink-100 text-pink-700',
   }
 
   const timeAgo = (iso: string) => {

@@ -1,637 +1,424 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bell,
   BellRing,
-  Clock,
-  Calendar,
-  Plus,
+  Check,
+  CheckCheck,
   Trash2,
-  Power,
-  PowerOff,
+  Flame,
+  MessageCircle,
+  Users,
+  Zap,
+  Shield,
+  Trophy,
+  AlertTriangle,
   Volume2,
   VolumeX,
-  Settings,
-  CheckCircle2,
-  AlertCircle,
+  Sparkles,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { HabitReminder, ReminderFrequency } from '@/types'
 import { useAuth } from '@/components/AuthProvider'
-import { getHabits } from '@/lib/db'
-import type { Habit } from '@/types'
 import {
-  getReminders,
-  saveReminder,
-  deleteReminder,
+  getNotifications,
+  addNotification,
+  markNotificationRead,
+  markAllRead,
+  clearNotifications,
   getPermissionStatus,
   requestNotificationPermission,
   sendBrowserNotification,
-  addNotification,
-  getNotifications,
-  clearNotifications,
 } from '@/lib/notificationStore'
-import { checkAndFireReminders } from '@/lib/reminderScheduler'
+import { getFriends } from '@/lib/db'
+import {
+  getRandomQuote,
+  getRandomRoast,
+  getFriendComparison,
+} from '@/lib/motivationQuotes'
+import type { AppNotification } from '@/types'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-const FREQUENCY_OPTIONS: { value: ReminderFrequency; label: string; desc: string }[] = [
-  { value: 'once', label: 'Once a day', desc: 'Single reminder per day' },
-  { value: 'every_30min', label: 'Every 30 min', desc: 'Frequent check-ins' },
-  { value: 'every_1hr', label: 'Every hour', desc: 'Hourly nudges' },
-  { value: 'every_2hr', label: 'Every 2 hours', desc: 'Moderate frequency' },
-  { value: 'every_4hr', label: 'Every 4 hours', desc: 'Light reminders' },
-  { value: 'custom', label: 'Custom interval', desc: 'Set your own timing' },
-]
+const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
+  reminder: { icon: Bell, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/30' },
+  streak: { icon: Flame, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/30' },
+  badge: { icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/30' },
+  challenge: { icon: Shield, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/30' },
+  system: { icon: Zap, color: 'text-slate-600', bg: 'bg-slate-50 dark:bg-slate-800' },
+  motivation: { icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/30' },
+  roast: { icon: MessageCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/30' },
+  friend: { icon: Users, color: 'text-pink-600', bg: 'bg-pink-50 dark:bg-pink-900/30' },
+}
 
 export default function NotificationsPage() {
-  const { user } = useAuth()
-  const [habits, setHabitsData] = useState<Habit[]>([])
-  const [reminders, setReminders] = useState<HabitReminder[]>([])
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
-  const [showAdd, setShowAdd] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-  const [recentNotifs, setRecentNotifs] = useState(0)
-
-  // Form state for new reminder
-  const [newHabitId, setNewHabitId] = useState('')
-  const [newFreq, setNewFreq] = useState<ReminderFrequency>('every_2hr')
-  const [newCustomMin, setNewCustomMin] = useState(90)
-  const [newStartTime, setNewStartTime] = useState('08:00')
-  const [newEndTime, setNewEndTime] = useState('21:00')
-  const [newDays, setNewDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
-
-  const refresh = useCallback(() => {
-    setReminders(getReminders())
-    setRecentNotifs(getNotifications().length)
-  }, [])
+  const { user: authUser, loading: authLoading } = useAuth()
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [filter, setFilter] = useState<string>('all')
+  const [permissionStatus, setPermissionStatus] = useState<string>('default')
+  const [showPermissionBanner, setShowPermissionBanner] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setPermission(getPermissionStatus())
-    refresh()
-    // Load habits from DB
-    if (user) {
-      getHabits(user.id).then(setHabitsData)
-    }
-  }, [refresh, user])
-
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
-  }
+    if (authLoading) return
+    setNotifications(getNotifications())
+    const status = getPermissionStatus()
+    setPermissionStatus(status)
+    setShowPermissionBanner(status !== 'granted' && status !== 'unsupported')
+    setLoading(false)
+  }, [authLoading])
 
   const handleRequestPermission = async () => {
     const result = await requestNotificationPermission()
-    setPermission(result)
+    setPermissionStatus(result)
     if (result === 'granted') {
-      showToast('Browser notifications enabled! 🎉')
-      sendBrowserNotification('HabitLab Notifications', 'You will now receive habit reminders! 🧪')
-    } else if (result === 'denied') {
-      showToast('Permission denied. Enable in browser settings.')
+      setShowPermissionBanner(false)
+      sendBrowserNotification(
+        'Notifications Enabled! 🔔',
+        'You\'ll now receive habit reminders and motivation. Let\'s crush it!'
+      )
+      // Also add an in-app notification
+      addNotification({
+        type: 'system',
+        title: 'Browser Notifications Enabled',
+        message: 'You\'ll now get push notifications for reminders, streaks, and motivation!',
+      })
+      setNotifications(getNotifications())
     }
   }
 
-  const handleAddReminder = () => {
-    if (!newHabitId) {
-      showToast('Please select a habit first')
-      return
-    }
-    const habit = habits.find(h => h.id === newHabitId)
-    if (!habit) return
-
-    // Check if reminder already exists for this habit
-    if (reminders.some(r => r.habit_id === newHabitId)) {
-      showToast('Reminder already exists for this habit')
-      return
-    }
-
-    const reminder: HabitReminder = {
-      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      habit_id: habit.id,
-      habit_title: habit.title,
-      enabled: true,
-      frequency: newFreq,
-      custom_interval_min: newFreq === 'custom' ? newCustomMin : undefined,
-      start_time: newStartTime,
-      end_time: newEndTime,
-      days_of_week: newDays,
-      created_at: new Date().toISOString(),
-    }
-
-    saveReminder(reminder)
-    setShowAdd(false)
-    setNewHabitId('')
-    refresh()
-    showToast(`Reminder set for "${habit.title}" ⏰`)
-  }
-
-  const handleToggle = (reminder: HabitReminder) => {
-    saveReminder({ ...reminder, enabled: !reminder.enabled })
-    refresh()
-    showToast(reminder.enabled ? 'Reminder paused' : 'Reminder activated ⏰')
-  }
-
-  const handleDelete = (id: string) => {
-    deleteReminder(id)
-    refresh()
-    showToast('Reminder deleted')
-  }
-
-  const handleUpdateReminder = (reminder: HabitReminder, updates: Partial<HabitReminder>) => {
-    saveReminder({ ...reminder, ...updates })
-    refresh()
-    showToast('Reminder updated ✓')
-  }
-
-  const handleTestNotification = () => {
+  const handleSendTestRoast = () => {
+    const roast = getRandomRoast()
     addNotification({
-      type: 'system',
-      title: '🔔 Test Notification',
-      message: 'This is a test! Your notifications are working correctly.',
+      type: 'roast',
+      title: 'Habit Roast 🔥',
+      message: roast,
     })
-    sendBrowserNotification('🔔 HabitLab Test', 'Notifications are working! You\'ll receive habit reminders here.')
-    refresh()
-    showToast('Test notification sent!')
+    setNotifications(getNotifications())
+    if (permissionStatus === 'granted') {
+      sendBrowserNotification('Habit Roast 🔥', roast)
+    }
   }
 
-  const habitsWithoutReminder = habits.filter(
-    h => h.is_active && !reminders.some(r => r.habit_id === h.id)
-  )
+  const handleSendMotivation = () => {
+    const quote = getRandomQuote()
+    addNotification({
+      type: 'motivation',
+      title: 'Motivation Boost ✨',
+      message: quote,
+    })
+    setNotifications(getNotifications())
+    if (permissionStatus === 'granted') {
+      sendBrowserNotification('Motivation Boost ✨', quote)
+    }
+  }
+
+  const handleSendFriendComparison = async () => {
+    if (!authUser) return
+    try {
+      const friends = await getFriends(authUser.id)
+      if (friends.length > 0) {
+        const randomFriend = friends[Math.floor(Math.random() * friends.length)]
+        const friendName = randomFriend.friend_profile?.name || 'A friend'
+        const friendXP = randomFriend.friend_profile?.xp_points || 0
+        const msg = getFriendComparison(friendName, undefined, friendXP)
+        addNotification({
+          type: 'friend',
+          title: 'Friend Challenge 👀',
+          message: msg,
+        })
+      } else {
+        addNotification({
+          type: 'friend',
+          title: 'No Friends Yet',
+          message: 'Add friends from the Leaderboard to get friend comparison notifications!',
+        })
+      }
+      setNotifications(getNotifications())
+    } catch (err) {
+      console.error('Friend comparison error:', err)
+    }
+  }
+
+  const handleMarkRead = (id: string) => {
+    markNotificationRead(id)
+    setNotifications(getNotifications())
+  }
+
+  const handleMarkAllRead = () => {
+    markAllRead()
+    setNotifications(getNotifications())
+  }
+
+  const handleClearAll = () => {
+    clearNotifications()
+    setNotifications([])
+  }
+
+  const filtered = filter === 'all' ? notifications : notifications.filter((n) => n.type === filter)
+  const unreadCount = notifications.filter((n) => !n.read).length
+
+  const timeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    return `${Math.floor(hrs / 24)}d ago`
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 right-4 z-[100] bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <BellRing className="text-brand-500" size={28} />
-            Notifications & Reminders
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BellRing className="text-blue-500" size={24} />
+            Notifications
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Set up smart reminders to never miss your habits. Your brain needs consistent cues!
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'} · Reminders, roasts & motivation
           </p>
         </div>
-      </div>
-
-      {/* Permission Card */}
-      <div className={cn(
-        'rounded-xl border p-5',
-        permission === 'granted'
-          ? 'bg-green-50 border-green-200'
-          : permission === 'denied'
-            ? 'bg-red-50 border-red-200'
-            : 'bg-amber-50 border-amber-200'
-      )}>
-        <div className="flex items-start gap-4">
-          <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-            permission === 'granted' ? 'bg-green-100' : permission === 'denied' ? 'bg-red-100' : 'bg-amber-100'
-          )}>
-            {permission === 'granted' ? (
-              <Volume2 size={20} className="text-green-600" />
-            ) : permission === 'denied' ? (
-              <VolumeX size={20} className="text-red-600" />
-            ) : (
-              <Bell size={20} className="text-amber-600" />
-            )}
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-sm">
-              {permission === 'granted'
-                ? 'Browser Notifications Enabled ✓'
-                : permission === 'denied'
-                  ? 'Browser Notifications Blocked'
-                  : permission === 'unsupported'
-                    ? 'Browser Notifications Not Supported'
-                    : 'Enable Browser Notifications'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              {permission === 'granted'
-                ? 'You\'ll receive push notifications even when the tab is in the background.'
-                : permission === 'denied'
-                  ? 'Go to your browser settings to re-enable notifications for this site.'
-                  : permission === 'unsupported'
-                    ? 'Your browser doesn\'t support notifications. In-app reminders will still work.'
-                    : 'Allow notifications to get reminded even when the browser tab is not active.'}
-            </p>
-          </div>
-          <div className="flex-shrink-0 flex gap-2">
-            {permission !== 'granted' && permission !== 'unsupported' && (
-              <button
-                onClick={handleRequestPermission}
-                className="px-3 py-1.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
-              >
-                Enable
-              </button>
-            )}
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
             <button
-              onClick={handleTestNotification}
-              className="px-3 py-1.5 bg-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-300 transition"
+              onClick={handleMarkAllRead}
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
             >
-              Test
+              <CheckCheck size={14} /> Mark all read
             </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
-          <p className="text-2xl font-bold text-brand-600">{reminders.filter(r => r.enabled).length}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Active Reminders</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
-          <p className="text-2xl font-bold text-accent-600">{reminders.length}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Reminders</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
-          <p className="text-2xl font-bold text-orange-500">{recentNotifs}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Notifications Sent</p>
-        </div>
-      </div>
-
-      {/* Existing Reminders */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-700 dark:text-slate-200">Your Reminders</h2>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
-          >
-            <Plus size={16} />
-            Add Reminder
-          </button>
-        </div>
-
-        {reminders.length === 0 && !showAdd && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center">
-            <Clock size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">No reminders set up yet</p>
-            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
-              Add reminders for your habits to stay on track
-            </p>
+          )}
+          {notifications.length > 0 && (
             <button
-              onClick={() => setShowAdd(true)}
-              className="mt-4 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
+              onClick={handleClearAll}
+              className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
             >
-              Set Your First Reminder
+              <Trash2 size={14} /> Clear all
             </button>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
 
-        {/* Reminder Cards */}
-        {reminders.map((rem) => (
+      {/* Browser Notification Permission Banner */}
+      <AnimatePresence>
+        {showPermissionBanner && (
           <motion.div
-            key={rem.id}
-            layout
-            className={cn(
-              'bg-white dark:bg-slate-900 rounded-xl border overflow-hidden transition-colors',
-              rem.enabled ? 'border-slate-200 dark:border-slate-800' : 'border-slate-100 dark:border-slate-800 opacity-60'
-            )}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-xl p-5 text-white shadow-lg"
           >
-            {/* Summary Row */}
-            <div className="flex items-center gap-4 p-4">
-              <button
-                onClick={() => handleToggle(rem)}
-                className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition',
-                  rem.enabled
-                    ? 'bg-brand-100 text-brand-600 hover:bg-brand-200'
-                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                )}
-              >
-                {rem.enabled ? <Power size={18} /> : <PowerOff size={18} />}
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{rem.habit_title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {FREQUENCY_OPTIONS.find(f => f.value === rem.frequency)?.label || rem.frequency}
-                  {' · '}
-                  {rem.start_time} – {rem.end_time}
-                  {' · '}
-                  {rem.days_of_week.length === 7
-                    ? 'Every day'
-                    : rem.days_of_week.map(d => DAYS[d]).join(', ')}
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Bell size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg">Enable Browser Notifications</h3>
+                <p className="text-sm text-white/90 mt-1">
+                  Get reminded about your habits, receive motivation, and never miss a streak!
+                  We promise to only send useful stuff (and the occasional roast 😏).
+                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={handleRequestPermission}
+                    className="bg-white text-indigo-600 font-semibold text-sm px-5 py-2 rounded-lg hover:bg-white/90 transition-colors shadow-md"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Volume2 size={16} /> Turn On Notifications
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowPermissionBanner(false)}
+                    className="text-white/70 text-sm hover:text-white transition-colors"
+                  >
+                    Maybe later
+                  </button>
+                </div>
+              </div>
+            </div>
+            {permissionStatus === 'denied' && (
+              <div className="mt-3 pt-3 border-t border-white/20">
+                <p className="text-xs text-white/80 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Notifications were previously blocked. Please enable them in your browser settings (click the lock icon in the address bar).
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => setExpandedId(expandedId === rem.id ? null : rem.id)}
-                  className="p-2 rounded-md hover:bg-slate-100 transition"
-                >
-                  {expandedId === rem.id ? (
-                    <ChevronUp size={16} className="text-slate-400" />
-                  ) : (
-                    <ChevronDown size={16} className="text-slate-400" />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleDelete(rem.id)}
-                  className="p-2 rounded-md hover:bg-red-50 transition text-slate-400 hover:text-red-500"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Expanded Edit Section */}
-            <AnimatePresence>
-              {expandedId === rem.id && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="border-t border-slate-100"
-                >
-                  <div className="p-4 space-y-4 bg-slate-50 dark:bg-slate-800/50">
-                    {/* Frequency */}
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Frequency</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {FREQUENCY_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => handleUpdateReminder(rem, { frequency: opt.value })}
-                            className={cn(
-                              'px-3 py-2 rounded-lg text-xs font-medium border transition',
-                              rem.frequency === opt.value
-                                ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-400'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-                            )}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      {rem.frequency === 'custom' && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Every</span>
-                          <input
-                            type="number"
-                            min={5}
-                            max={480}
-                            value={rem.custom_interval_min || 60}
-                            onChange={(e) => handleUpdateReminder(rem, { custom_interval_min: Number(e.target.value) })}
-                            className="w-20 px-2 py-1 rounded border border-slate-300 text-sm"
-                          />
-                          <span className="text-xs text-slate-500">minutes</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Time Window */}
-                    <div className="flex gap-4">
-                      <div>
-                        <label className="text-xs font-medium text-slate-600 mb-1 block">Start Time</label>
-                        <input
-                          type="time"
-                          value={rem.start_time}
-                          onChange={e => handleUpdateReminder(rem, { start_time: e.target.value })}
-                          className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-slate-600 mb-1 block">End Time</label>
-                        <input
-                          type="time"
-                          value={rem.end_time}
-                          onChange={e => handleUpdateReminder(rem, { end_time: e.target.value })}
-                          className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Days */}
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1 block">Active Days</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {DAYS.map((day, i) => (
-                          <button
-                            key={day}
-                            onClick={() => {
-                              const newDays = rem.days_of_week.includes(i)
-                                ? rem.days_of_week.filter(d => d !== i)
-                                : [...rem.days_of_week, i].sort()
-                              if (newDays.length > 0) {
-                                handleUpdateReminder(rem, { days_of_week: newDays })
-                              }
-                            }}
-                            className={cn(
-                              'w-9 h-9 sm:w-10 sm:h-10 rounded-full text-xs font-medium transition',
-                              rem.days_of_week.includes(i)
-                                ? 'bg-brand-500 text-white'
-                                : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-brand-300'
-                            )}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Add New Reminder Form */}
-      <AnimatePresence>
-        {showAdd && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-brand-200 dark:border-brand-800 p-4 sm:p-5 space-y-4"
-          >
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Plus size={18} className="text-brand-500" />
-              New Reminder
-            </h3>
-
-            {/* Habit Select */}
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Select Habit</label>
-              {habitsWithoutReminder.length > 0 ? (
-                <select
-                  value={newHabitId}
-                  onChange={(e) => setNewHabitId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 dark:text-slate-200"
-                >
-                  <option value="">Choose a habit...</option>
-                  {habitsWithoutReminder.map(h => (
-                    <option key={h.id} value={h.id}>{h.title}</option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-sm text-slate-400 italic">All habits already have reminders set up!</p>
-              )}
-            </div>
-
-            {/* Frequency */}
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">How often?</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {FREQUENCY_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setNewFreq(opt.value)}
-                    className={cn(
-                      'px-3 py-2.5 rounded-lg text-xs font-medium border transition text-left',
-                      newFreq === opt.value
-                        ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-400'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-                    )}
-                  >
-                    <span className="block">{opt.label}</span>
-                    <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{opt.desc}</span>
-                  </button>
-                ))}
-              </div>
-              {newFreq === 'custom' && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Every</span>
-                  <input
-                    type="number"
-                    min={5}
-                    max={480}
-                    value={newCustomMin}
-                    onChange={(e) => setNewCustomMin(Number(e.target.value))}
-                    className="w-20 px-2 py-1 rounded border border-slate-300 text-sm"
-                  />
-                  <span className="text-xs text-slate-500">minutes</span>
-                </div>
-              )}
-            </div>
-
-            {/* Time Window */}
-            <div className="flex gap-4">
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Remind from</label>
-                <input
-                  type="time"
-                  value={newStartTime}
-                  onChange={e => setNewStartTime(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Until</label>
-                <input
-                  type="time"
-                  value={newEndTime}
-                  onChange={e => setNewEndTime(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Days */}
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2 block">Which days?</label>
-              <div className="flex flex-wrap gap-1.5">
-                {DAYS.map((day, i) => (
-                  <button
-                    key={day}
-                    onClick={() => {
-                      setNewDays(prev =>
-                        prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i].sort()
-                      )
-                    }}
-                    className={cn(
-                      'w-9 h-9 sm:w-10 sm:h-10 rounded-full text-xs font-medium transition',
-                      newDays.includes(i)
-                        ? 'bg-brand-500 text-white'
-                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-brand-300'
-                    )}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowAdd(false)}
-                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddReminder}
-                className="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition flex items-center gap-2"
-              >
-                <Bell size={16} />
-                Save Reminder
-              </button>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Science Info Box */}
-      <div className="bg-gradient-to-br from-accent-50 to-brand-50 dark:from-accent-950/30 dark:to-brand-950/30 rounded-xl border border-accent-200 dark:border-accent-800 p-4 sm:p-5">
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-sm">
-          <AlertCircle size={16} className="text-accent-500" />
-          The Science of Reminders
-        </h3>
-        <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-          <p>
-            <strong>Cue-Routine-Reward:</strong> Reminders act as external cues in the habit loop.
-            Over time, your brain learns to associate the cue with the behavior automatically.
-          </p>
-          <p>
-            <strong>Implementation Intentions:</strong> Research by Peter Gollwitzer shows that planning
-            when and where you&apos;ll act increases follow-through by 2-3x.
-          </p>
-          <p>
-            <strong>Spaced Reminders:</strong> Multiple gentle nudges throughout the day are more effective
-            than a single reminder — they leverage the spacing effect from memory science.
-          </p>
-          <p>
-            <strong>Tip:</strong> Start with frequent reminders (every 1-2 hours), then reduce them as your
-            habit becomes automatic — usually after 21-66 days according to research.
-          </p>
+      {/* Quick Actions — Send Test Notifications */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Quick Actions</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleSendMotivation}
+            className="flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium px-3 py-2 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+          >
+            <Sparkles size={14} /> Get Motivation
+          </button>
+          <button
+            onClick={handleSendTestRoast}
+            className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-3 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+          >
+            <MessageCircle size={14} /> Get Roasted 🔥
+          </button>
+          <button
+            onClick={handleSendFriendComparison}
+            className="flex items-center gap-1.5 bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs font-medium px-3 py-2 rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors"
+          >
+            <Users size={14} /> Friend Comparison
+          </button>
         </div>
       </div>
 
-      {/* Clear All Notifications */}
-      {recentNotifs > 0 && (
-        <div className="text-center">
+      {/* Filter Tabs */}
+      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto">
+        {['all', 'reminder', 'streak', 'badge', 'motivation', 'roast', 'friend', 'system'].map((type) => (
           <button
-            onClick={() => {
-              clearNotifications()
-              refresh()
-              showToast('All notifications cleared')
-            }}
-            className="text-xs text-slate-400 hover:text-red-500 transition"
+            key={type}
+            onClick={() => setFilter(type)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
+              filter === type
+                ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
           >
-            Clear all {recentNotifs} notifications from history
+            {type}
+            {type !== 'all' && (
+              <span className="ml-1 text-[10px] opacity-60">
+                ({notifications.filter((n) => n.type === type).length})
+              </span>
+            )}
           </button>
+        ))}
+      </div>
+
+      {/* Notification List */}
+      <div className="space-y-2">
+        <AnimatePresence>
+          {filtered.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center"
+            >
+              <Bell size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+                {filter === 'all' ? 'No notifications yet' : `No ${filter} notifications`}
+              </h3>
+              <p className="text-sm text-slate-400 mt-1">
+                {filter === 'all' 
+                  ? 'Set up reminders for your habits to start receiving notifications!'
+                  : 'Try a different filter or check back later.'}
+              </p>
+            </motion.div>
+          ) : (
+            filtered.map((notif, i) => {
+              const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.system
+              const Icon = config.icon
+              return (
+                <motion.div
+                  key={notif.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ delay: i * 0.03 }}
+                  className={`bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-start gap-3 transition-all ${
+                    notif.read
+                      ? 'border-slate-100 dark:border-slate-800 opacity-70'
+                      : 'border-slate-200 dark:border-slate-700 shadow-sm'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon size={18} className={config.color} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-sm font-semibold ${notif.read ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-white'}`}>
+                        {notif.title}
+                      </h4>
+                      {!notif.read && (
+                        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      {notif.message}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-[10px] text-slate-400">{timeAgo(notif.created_at)}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${config.bg} ${config.color}`}>
+                        {notif.type}
+                      </span>
+                      {!notif.read && (
+                        <button
+                          onClick={() => handleMarkRead(notif.id)}
+                          className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
+                        >
+                          <Check size={10} /> Mark read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Notification Settings Info */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700"
+      >
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-2">
+          <Shield size={14} /> Notification Settings
+        </h3>
+        <div className="space-y-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between">
+            <span>Browser Notifications</span>
+            <span className={`font-medium ${
+              permissionStatus === 'granted' ? 'text-green-600' : permissionStatus === 'denied' ? 'text-red-500' : 'text-amber-500'
+            }`}>
+              {permissionStatus === 'granted' ? '✅ Enabled' : permissionStatus === 'denied' ? '❌ Blocked' : '⏳ Not set'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Motivation Quotes</span>
+            <span className="text-green-600 font-medium">Active</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Roasting Style</span>
+            <span className="text-green-600 font-medium">Active</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Friend Comparisons</span>
+            <span className="text-green-600 font-medium">Active</span>
+          </div>
         </div>
-      )}
+        {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
+          <button
+            onClick={handleRequestPermission}
+            className="mt-3 w-full bg-brand-600 text-white text-xs font-medium py-2 rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            Enable Browser Notifications
+          </button>
+        )}
+      </motion.div>
     </div>
   )
 }
