@@ -33,6 +33,12 @@ import {
   getUserBadges,
   getAllBadges,
   checkAndAwardBadges,
+  isUsernameTaken,
+  getFriends,
+  removeFriend,
+  getFriendRequests,
+  acceptFriendRequest,
+  rejectFriendRequest,
 } from '@/lib/db'
 import { calculateConsistency } from '@/lib/scoring'
 import { assignPersonality } from '@/lib/profileEngine'
@@ -90,8 +96,14 @@ export default function ProfilePage() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [usernameInput, setUsernameInput] = useState('')
+  const [usernameError, setUsernameError] = useState('')
+  const [checkingUsername, setCheckingUsername] = useState(false)
   const [saving, setSaving] = useState(false)
   const [newBadges, setNewBadges] = useState<string[]>([])
+  const [friends, setFriends] = useState<any[]>([])
+  const [friendRequests, setFriendRequests] = useState<any[]>([])
   const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -100,13 +112,15 @@ export default function ProfilePage() {
 
     const load = async () => {
       try {
-        const [p, h, l, s, ub, ab] = await Promise.all([
+        const [p, h, l, s, ub, ab, fr, freqs] = await Promise.all([
           getProfile(authUser.id),
           getHabits(authUser.id),
           getAllLogs(authUser.id),
           getAllStreaks(authUser.id),
           getUserBadges(authUser.id),
           getAllBadges(),
+          getFriends(authUser.id).catch(() => []),
+          getFriendRequests(authUser.id).catch(() => []),
         ])
         setProfile(p)
         setHabits(h)
@@ -114,7 +128,12 @@ export default function ProfilePage() {
         setStreaks(s)
         setUserBadges(ub)
         setAllBadges(ab)
-        if (p) setNameInput(p.name || '')
+        setFriends(fr)
+        setFriendRequests(freqs)
+        if (p) {
+          setNameInput(p.name || '')
+          setUsernameInput(p.username || '')
+        }
 
         // Check for new badges
         const awarded = await checkAndAwardBadges(authUser.id)
@@ -156,6 +175,52 @@ export default function ProfilePage() {
       console.error('Error updating name:', err)
     }
     setSaving(false)
+  }
+
+  const handleUsernameSave = async () => {
+    if (!authUser || !usernameInput.trim()) return
+    const un = usernameInput.toLowerCase().trim()
+    if (un.length < 3) { setUsernameError('Min 3 characters'); return }
+    if (un.length > 20) { setUsernameError('Max 20 characters'); return }
+    if (!/^[a-zA-Z0-9_]+$/.test(un)) { setUsernameError('Only letters, numbers & underscores'); return }
+    setCheckingUsername(true)
+    try {
+      const taken = await isUsernameTaken(un, authUser.id)
+      if (taken) { setUsernameError('This username is already taken'); setCheckingUsername(false); return }
+      await upsertProfile({ id: authUser.id, username: un })
+      setProfile((p) => p ? { ...p, username: un } : p)
+      setEditingUsername(false)
+      setUsernameError('')
+    } catch (err) {
+      console.error('Error updating username:', err)
+    }
+    setCheckingUsername(false)
+  }
+
+  const handleAcceptFriend = async (fromUserId: string) => {
+    if (!authUser) return
+    try {
+      await acceptFriendRequest(fromUserId, authUser.id)
+      setFriendRequests((prev) => prev.filter((r: any) => r.from_user_id !== fromUserId))
+      const updated = await getFriends(authUser.id).catch(() => [])
+      setFriends(updated)
+    } catch (err) { console.error(err) }
+  }
+
+  const handleRejectFriend = async (fromUserId: string) => {
+    if (!authUser) return
+    try {
+      await rejectFriendRequest(fromUserId, authUser.id)
+      setFriendRequests((prev) => prev.filter((r: any) => r.from_user_id !== fromUserId))
+    } catch (err) { console.error(err) }
+  }
+
+  const handleRemoveFriend = async (friendId: string) => {
+    if (!authUser) return
+    try {
+      await removeFriend(authUser.id, friendId)
+      setFriends((prev) => prev.filter((f: any) => f.friend_profile?.id !== friendId))
+    } catch (err) { console.error(err) }
   }
 
   // Computed stats
@@ -302,6 +367,35 @@ export default function ProfilePage() {
               </div>
             )}
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{profile?.email}</p>
+            {/* Username */}
+            <div className="mt-1">
+              {editingUsername ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 text-sm">@</span>
+                  <input
+                    value={usernameInput}
+                    onChange={(e) => { setUsernameInput(e.target.value.replace(/[^a-zA-Z0-9_]/g, '')); setUsernameError('') }}
+                    className="text-sm bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    autoFocus
+                    maxLength={20}
+                    placeholder="username"
+                    onKeyDown={(e) => e.key === 'Enter' && handleUsernameSave()}
+                  />
+                  <button onClick={handleUsernameSave} disabled={checkingUsername} className="text-green-600 p-1"><Check size={16} /></button>
+                  <button onClick={() => { setEditingUsername(false); setUsernameError(''); setUsernameInput(profile?.username || '') }} className="text-slate-400 p-1"><X size={16} /></button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-brand-600 dark:text-brand-400 font-medium">
+                    @{profile?.username || 'set_username'}
+                  </span>
+                  <button onClick={() => { setEditingUsername(true); setUsernameInput(profile?.username || '') }} className="text-slate-400 hover:text-brand-600 transition-colors">
+                    <Edit3 size={12} />
+                  </button>
+                </div>
+              )}
+              {usernameError && <p className="text-xs text-red-500 mt-0.5">{usernameError}</p>}
+            </div>
             {personality && (
               <div className="mt-2 inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium px-3 py-1 rounded-full">
                 <Star size={12} />
@@ -489,6 +583,89 @@ export default function ProfilePage() {
                     </motion.div>
                   ))}
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Pending Friend Requests */}
+      {friendRequests.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
+        >
+          <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
+            <UserIcon size={18} className="text-brand-500" /> Pending Friend Requests
+            <span className="text-xs bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 px-2 py-0.5 rounded-full">{friendRequests.length}</span>
+          </h3>
+          <div className="space-y-2">
+            {friendRequests.map((req: any) => (
+              <div key={req.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                  {req.from_profile?.avatar_url ? (
+                    <img src={req.from_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
+                      {(req.from_profile?.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{req.from_profile?.name || 'Unknown'}</p>
+                  {req.from_profile?.username && (
+                    <p className="text-xs text-brand-500">@{req.from_profile.username}</p>
+                  )}
+                </div>
+                <button onClick={() => handleAcceptFriend(req.from_user_id)} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition">Accept</button>
+                <button onClick={() => handleRejectFriend(req.from_user_id)} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition">Decline</button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Friends List */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5"
+      >
+        <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
+          <UserIcon size={18} className="text-fuchsia-500" /> Friends
+          <span className="text-xs text-slate-400 ml-auto">{friends.length} friend{friends.length !== 1 ? 's' : ''}</span>
+        </h3>
+        {friends.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-6">No friends yet. Search for users by username on the Leaderboard page to add friends!</p>
+        ) : (
+          <div className="space-y-2">
+            {friends.map((f: any) => (
+              <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                  {f.friend_profile?.avatar_url ? (
+                    <img src={f.friend_profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-slate-500">
+                      {(f.friend_profile?.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{f.friend_profile?.name || 'Unknown'}</p>
+                  {f.friend_profile?.username && (
+                    <p className="text-xs text-brand-500">@{f.friend_profile.username}</p>
+                  )}
+                </div>
+                <span className="text-xs text-slate-400">⚡ {f.friend_profile?.xp_points || 0} XP</span>
+                <button
+                  onClick={() => handleRemoveFriend(f.friend_profile?.id)}
+                  className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                >
+                  Remove
+                </button>
               </div>
             ))}
           </div>

@@ -6,15 +6,18 @@ import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff } from 'lucide-react'
 import { auth } from '@/lib/firebase'
 import { createUserWithEmailAndPassword, updateProfile, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
-import { upsertProfile } from '@/lib/db'
+import { upsertProfile, isUsernameTaken } from '@/lib/db'
 
 export default function SignUpPage() {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [usernameError, setUsernameError] = useState('')
+  const [checkingUsername, setCheckingUsername] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const validatePassword = (pw: string) => {
@@ -22,6 +25,36 @@ export default function SignUpPage() {
     if (!/[A-Z]/.test(pw)) return 'Password must contain at least 1 uppercase letter'
     if (!/[0-9]/.test(pw)) return 'Password must contain at least 1 number'
     return null
+  }
+
+  const validateUsername = (un: string) => {
+    if (un.length < 3) return 'Username must be at least 3 characters'
+    if (un.length > 20) return 'Username must be at most 20 characters'
+    if (!/^[a-zA-Z0-9_]+$/.test(un)) return 'Only letters, numbers, and underscores allowed'
+    return null
+  }
+
+  const checkUsernameAvailability = async (un: string) => {
+    const validationError = validateUsername(un)
+    if (validationError) {
+      setUsernameError(validationError)
+      return false
+    }
+    setCheckingUsername(true)
+    try {
+      const taken = await isUsernameTaken(un)
+      if (taken) {
+        setUsernameError('This username is already taken')
+        setCheckingUsername(false)
+        return false
+      }
+      setUsernameError('')
+      setCheckingUsername(false)
+      return true
+    } catch {
+      setCheckingUsername(false)
+      return true // allow to proceed if check fails
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,7 +67,20 @@ export default function SignUpPage() {
       return
     }
 
+    const unError = validateUsername(username)
+    if (unError) {
+      setUsernameError(unError)
+      return
+    }
+
     setLoading(true)
+
+    // Check username uniqueness before creating the account
+    const available = await checkUsernameAvailability(username)
+    if (!available) {
+      setLoading(false)
+      return
+    }
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password)
@@ -42,12 +88,13 @@ export default function SignUpPage() {
       // Set display name
       await updateProfile(cred.user, { displayName: name })
 
-      // Create profile in Firestore
+      // Create profile in Firestore with unique username
       try {
         await upsertProfile({
           id: cred.user.uid,
           email: cred.user.email || email,
           name: name,
+          username: username.toLowerCase().trim(),
           avatar_url: undefined,
         })
       } catch {
@@ -75,11 +122,22 @@ export default function SignUpPage() {
     try {
       const provider = new GithubAuthProvider()
       const result = await signInWithPopup(auth, provider)
+      // Generate a unique username from display name or email
+      const baseName = (result.user.displayName || result.user.email?.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
+      let uname = baseName.slice(0, 16)
+      let taken = await isUsernameTaken(uname)
+      let attempt = 1
+      while (taken) {
+        uname = `${baseName.slice(0, 14)}${attempt}`
+        taken = await isUsernameTaken(uname)
+        attempt++
+      }
       try {
         await upsertProfile({
           id: result.user.uid,
           email: result.user.email || '',
           name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          username: uname,
           avatar_url: result.user.photoURL || undefined,
         })
       } catch {}
@@ -95,11 +153,22 @@ export default function SignUpPage() {
     try {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
+      // Generate a unique username from display name or email
+      const baseName = (result.user.displayName || result.user.email?.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
+      let uname = baseName.slice(0, 16)
+      let taken = await isUsernameTaken(uname)
+      let attempt = 1
+      while (taken) {
+        uname = `${baseName.slice(0, 14)}${attempt}`
+        taken = await isUsernameTaken(uname)
+        attempt++
+      }
       try {
         await upsertProfile({
           id: result.user.uid,
           email: result.user.email || '',
           name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          username: uname,
           avatar_url: result.user.photoURL || undefined,
         })
       } catch {}
@@ -183,6 +252,45 @@ export default function SignUpPage() {
                 className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition"
                 placeholder="Your Name"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Username
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '')
+                    setUsername(val)
+                    setUsernameError('')
+                  }}
+                  onBlur={() => {
+                    if (username.length >= 3) checkUsernameAvailability(username)
+                  }}
+                  className={`w-full pl-8 pr-4 py-2.5 rounded-lg border text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition ${
+                    usernameError ? 'border-red-400' : 'border-slate-300'
+                  }`}
+                  placeholder="unique_username"
+                  maxLength={20}
+                />
+                {checkingUsername && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Checking...</span>
+                )}
+              </div>
+              {usernameError && (
+                <p className="mt-1 text-xs text-red-500">{usernameError}</p>
+              )}
+              {!usernameError && username.length >= 3 && !checkingUsername && (
+                <p className="mt-1 text-xs text-green-500">Username available!</p>
+              )}
+              <p className="mt-0.5 text-xs text-slate-400">
+                3-20 characters, letters, numbers & underscores only
+              </p>
             </div>
 
             <div>

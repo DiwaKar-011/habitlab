@@ -4,6 +4,7 @@ export interface User {
   id: string
   email: string
   name: string
+  username?: string
   avatar_url?: string
   personality?: string
   xp_points: number

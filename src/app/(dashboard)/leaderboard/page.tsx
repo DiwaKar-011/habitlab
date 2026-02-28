@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trophy, Users, UserPlus, Search, X, Eye, Loader2 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
-import { getLeaderboard, getFriends, sendFriendRequest, getFriendStats, searchUsers } from '@/lib/db'
+import { getLeaderboard, getFriends, sendFriendRequest, getFriendStats, searchUsers, getUserRank, getTotalUserCount } from '@/lib/db'
 import type { User } from '@/types'
 
 const rankEmoji = ['🥇', '🥈', '🥉']
@@ -12,6 +12,7 @@ const rankEmoji = ['🥇', '🥈', '🥉']
 interface LeaderboardUser {
   id: string
   name: string
+  username?: string
   avatar_url?: string
   xp_points: number
   score: number
@@ -34,6 +35,8 @@ export default function LeaderboardPage() {
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set())
   const [viewingStats, setViewingStats] = useState<any>(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [myRank, setMyRank] = useState<number | null>(null)
+  const [totalUsers, setTotalUsers] = useState<number>(0)
 
   useEffect(() => {
     if (!user || isGuest) { setLoading(false); return }
@@ -43,21 +46,38 @@ export default function LeaderboardPage() {
   const loadData = async () => {
     if (!user) return
     try {
-      const [rawLeaderboard, friends] = await Promise.all([
-        getLeaderboard(50),
+      const [rawLeaderboard, friends, rank, count] = await Promise.all([
+        getLeaderboard(100),
         getFriends(user.id).catch(() => []),
+        getUserRank(user.id).catch(() => null),
+        getTotalUserCount().catch(() => 0),
       ])
+      setMyRank(rank)
+      setTotalUsers(count)
       const fIds = new Set(friends.map((f: any) => f.friend_profile?.id).filter(Boolean))
       setFriendIds(fIds)
       const mapped: LeaderboardUser[] = (rawLeaderboard as any[]).map((u) => ({
         id: u.id,
         name: u.name || u.email?.split('@')[0] || 'Anonymous',
+        username: u.username,
         avatar_url: u.avatar_url,
         xp_points: u.xp_points || 0,
         score: u.xp_points || 0,
         isCurrentUser: u.id === user.id,
         isFriend: fIds.has(u.id),
       }))
+      // Ensure current user is always in the list
+      if (!mapped.some(u => u.isCurrentUser)) {
+        mapped.push({
+          id: user.id,
+          name: user.displayName || user.email?.split('@')[0] || 'You',
+          avatar_url: user.photoURL || undefined,
+          xp_points: 0,
+          score: 0,
+          isCurrentUser: true,
+          isFriend: false,
+        })
+      }
       setLeaderboard(mapped)
       setFriendsLeaderboard(mapped.filter((u) => u.isFriend || u.isCurrentUser).sort((a, b) => b.score - a.score))
     } catch (err) {
@@ -124,6 +144,36 @@ export default function LeaderboardPage() {
         ))}
       </div>
 
+      {/* Your Position Banner */}
+      {!isGuest && myRank !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-brand-600 to-accent-600 rounded-xl p-5 text-white shadow-lg"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
+                #{myRank}
+              </div>
+              <div>
+                <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Your Global Rank</p>
+                <p className="text-2xl font-bold">
+                  {myRank <= 3 ? rankEmoji[myRank - 1] : `#${myRank}`} out of {totalUsers} {totalUsers === 1 ? 'user' : 'users'}
+                </p>
+                <p className="text-white/70 text-xs mt-0.5">
+                  {myRank === 1 ? '🏆 You\'re #1! Keep it up!' : myRank <= 3 ? '🔥 Top 3! Amazing!' : myRank <= 10 ? '⚡ Top 10! Great work!' : 'Keep logging habits to climb the ranks!'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right hidden sm:block">
+              <p className="text-3xl font-bold">⚡ {leaderboard.find(u => u.isCurrentUser)?.xp_points || 0}</p>
+              <p className="text-white/70 text-xs">Total XP</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Top 3 */}
       {currentList.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -138,6 +188,7 @@ export default function LeaderboardPage() {
                 )}
               </div>
               <p className="font-semibold text-slate-800 dark:text-slate-100 mt-2 text-sm">{u.name}</p>
+              {u.username && <p className="text-xs text-brand-500 dark:text-brand-400">@{u.username}</p>}
               {u.isCurrentUser && <span className="text-[10px] bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 px-1.5 py-0.5 rounded-full">You</span>}
               <p className="text-xl font-bold text-brand-600 dark:text-brand-400 mt-1">{u.score}</p>
               <p className="text-xs text-slate-400">XP Points</p>
@@ -179,6 +230,7 @@ export default function LeaderboardPage() {
                       </div>
                       <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
                         {u.name}
+                        {u.username && <span className="ml-1 text-xs text-brand-500 dark:text-brand-400">@{u.username}</span>}
                         {u.isCurrentUser && <span className="ml-1 text-[10px] bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 px-1.5 py-0.5 rounded-full">You</span>}
                         {u.isFriend && !u.isCurrentUser && <span className="ml-1 text-[10px] bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full">Friend</span>}
                       </span>
@@ -216,7 +268,7 @@ export default function LeaderboardPage() {
               </div>
               <div className="p-4">
                 <div className="flex gap-2">
-                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search by name or email..." className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none" />
+                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search by username, name, or email..." className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none" />
                   <button onClick={handleSearch} disabled={searchLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
                     {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                   </button>
@@ -230,7 +282,9 @@ export default function LeaderboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-slate-800 dark:text-slate-100 truncate">{u.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                      <p className="text-xs text-slate-400 truncate">
+                        {u.username ? `@${u.username}` : u.email}
+                      </p>
                     </div>
                     {friendIds.has(u.id) ? (
                       <span className="text-xs text-green-600 font-medium">Friends</span>

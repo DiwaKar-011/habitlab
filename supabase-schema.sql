@@ -8,6 +8,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   name text,
+  username text unique,
   avatar_url text,
   personality text,
   xp_points integer default 0,

@@ -49,6 +49,33 @@ export async function upsertProfile(profile: Partial<User> & { id: string }) {
   return docToObj<User>(snap)
 }
 
+// ── USERNAME UNIQUENESS ─────────────────────────────────────
+export async function isUsernameTaken(username: string, excludeUserId?: string): Promise<boolean> {
+  const normalised = username.toLowerCase().trim()
+  const q = query(
+    collection(db, 'profiles'),
+    where('username', '==', normalised),
+    firestoreLimit(1)
+  )
+  const snap = await getDocs(q)
+  if (snap.empty) return false
+  // If the only match is the user themselves, it's not "taken"
+  if (excludeUserId && snap.docs.length === 1 && snap.docs[0].id === excludeUserId) return false
+  return true
+}
+
+export async function getUserByUsername(username: string): Promise<User | null> {
+  const normalised = username.toLowerCase().trim()
+  const q = query(
+    collection(db, 'profiles'),
+    where('username', '==', normalised),
+    firestoreLimit(1)
+  )
+  const snap = await getDocs(q)
+  if (snap.empty) return null
+  return docToObj<User>(snap.docs[0])
+}
+
 export async function updateProfileXP(userId: string, xpToAdd: number) {
   const profile = await getProfile(userId)
   if (!profile) return
@@ -57,26 +84,65 @@ export async function updateProfileXP(userId: string, xpToAdd: number) {
   })
 }
 
-export async function getLeaderboard(limit = 20) {
-  const q = query(
-    collection(db, 'profiles'),
-    where('is_public', '==', true),
-    orderBy('xp_points', 'desc'),
-    firestoreLimit(limit)
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+export async function getLeaderboard(limitNum = 50) {
+  try {
+    // Try ordered query with is_public filter first
+    const q = query(
+      collection(db, 'profiles'),
+      where('is_public', '==', true),
+      orderBy('xp_points', 'desc'),
+      firestoreLimit(limitNum)
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch (err: any) {
+    // Fallback: get all profiles without composite index requirement
+    if (err?.message?.includes('index') || err?.code === 'failed-precondition') {
+      console.warn('Leaderboard index missing, falling back')
+      const snap = await getDocs(collection(db, 'profiles'))
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any))
+      return all
+        .sort((a: any, b: any) => (b.xp_points || 0) - (a.xp_points || 0))
+        .slice(0, limitNum)
+    }
+    throw err
+  }
+}
+
+export async function getTotalUserCount(): Promise<number> {
+  const snap = await getDocs(collection(db, 'profiles'))
+  return snap.size
+}
+
+export async function getUserRank(userId: string): Promise<number> {
+  const snap = await getDocs(collection(db, 'profiles'))
+  const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any))
+    .sort((a: any, b: any) => (b.xp_points || 0) - (a.xp_points || 0))
+  const index = all.findIndex((u: any) => u.id === userId)
+  return index >= 0 ? index + 1 : all.length + 1
 }
 
 // ── HABITS ──────────────────────────────────────────────────
 export async function getHabits(userId: string): Promise<Habit[]> {
-  const q = query(
-    collection(db, 'habits'),
-    where('user_id', '==', userId),
-    orderBy('created_at', 'desc')
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => docToObj<Habit>(d))
+  try {
+    const q = query(
+      collection(db, 'habits'),
+      where('user_id', '==', userId),
+      orderBy('created_at', 'desc')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => docToObj<Habit>(d))
+  } catch (err: any) {
+    // If composite index is missing, fall back to simpler query
+    if (err?.message?.includes('index') || err?.code === 'failed-precondition') {
+      console.warn('Composite index missing for habits, falling back to unordered query')
+      const q = query(collection(db, 'habits'), where('user_id', '==', userId))
+      const snap = await getDocs(q)
+      const habits = snap.docs.map((d) => docToObj<Habit>(d))
+      return habits.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    }
+    throw err
+  }
 }
 
 export async function getHabit(habitId: string): Promise<Habit | null> {
@@ -98,7 +164,9 @@ export async function createHabit(habit: {
   target_days: number
 }): Promise<Habit> {
   const now = new Date().toISOString()
-  const habitData = { ...habit, is_active: true, created_at: now }
+  // Strip undefined values – Firestore rejects them
+  const raw: Record<string, any> = { ...habit, is_active: true, created_at: now }
+  const habitData = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined))
   const ref = await addDoc(collection(db, 'habits'), habitData)
 
   // Also create streak row
@@ -120,23 +188,44 @@ export async function deleteHabit(habitId: string) {
 
 // ── DAILY LOGS ──────────────────────────────────────────────
 export async function getLogsForHabit(habitId: string): Promise<DailyLog[]> {
-  const q = query(
-    collection(db, 'daily_logs'),
-    where('habit_id', '==', habitId),
-    orderBy('log_date', 'asc')
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => docToObj<DailyLog>(d))
+  try {
+    const q = query(
+      collection(db, 'daily_logs'),
+      where('habit_id', '==', habitId),
+      orderBy('log_date', 'asc')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => docToObj<DailyLog>(d))
+  } catch (err: any) {
+    if (err?.message?.includes('index') || err?.code === 'failed-precondition') {
+      const q = query(collection(db, 'daily_logs'), where('habit_id', '==', habitId))
+      const snap = await getDocs(q)
+      const logs = snap.docs.map((d) => docToObj<DailyLog>(d))
+      return logs.sort((a, b) => (a.log_date || '').localeCompare(b.log_date || ''))
+    }
+    throw err
+  }
 }
 
 export async function getAllLogs(userId: string): Promise<DailyLog[]> {
-  const q = query(
-    collection(db, 'daily_logs'),
-    where('user_id', '==', userId),
-    orderBy('log_date', 'asc')
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => docToObj<DailyLog>(d))
+  try {
+    const q = query(
+      collection(db, 'daily_logs'),
+      where('user_id', '==', userId),
+      orderBy('log_date', 'asc')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => docToObj<DailyLog>(d))
+  } catch (err: any) {
+    if (err?.message?.includes('index') || err?.code === 'failed-precondition') {
+      console.warn('Composite index missing for daily_logs, falling back to unordered query')
+      const q = query(collection(db, 'daily_logs'), where('user_id', '==', userId))
+      const snap = await getDocs(q)
+      const logs = snap.docs.map((d) => docToObj<DailyLog>(d))
+      return logs.sort((a, b) => (a.log_date || '').localeCompare(b.log_date || ''))
+    }
+    throw err
+  }
 }
 
 export async function getTodayLogs(userId: string): Promise<DailyLog[]> {
@@ -164,7 +253,9 @@ export async function createLog(log: {
 }): Promise<DailyLog> {
   // Use a composite key so upsert behaviour is achieved
   const compositeId = `${log.habit_id}_${log.log_date}`
-  const logData = { ...log, created_at: new Date().toISOString() }
+  // Strip undefined values – Firestore rejects them
+  const raw: Record<string, any> = { ...log, created_at: new Date().toISOString() }
+  const logData = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined))
   await setDoc(doc(db, 'daily_logs', compositeId), logData, { merge: true })
 
   // Update streak
@@ -191,14 +282,27 @@ export async function getAllStreaks(userId: string): Promise<Streak[]> {
 }
 
 export async function recalculateStreak(habitId: string, userId: string) {
-  // Get all logs for this habit sorted descending
-  const q = query(
-    collection(db, 'daily_logs'),
-    where('habit_id', '==', habitId),
-    orderBy('log_date', 'desc')
-  )
-  const snap = await getDocs(q)
-  const logs = snap.docs.map((d) => d.data())
+  // Get all logs for this habit
+  let logs: any[]
+  try {
+    const q = query(
+      collection(db, 'daily_logs'),
+      where('habit_id', '==', habitId),
+      orderBy('log_date', 'desc')
+    )
+    const snap = await getDocs(q)
+    logs = snap.docs.map((d) => d.data())
+  } catch (err: any) {
+    // Fallback if composite index is missing
+    if (err?.message?.includes('index') || err?.code === 'failed-precondition') {
+      console.warn('Index missing for recalculateStreak, falling back')
+      const q = query(collection(db, 'daily_logs'), where('habit_id', '==', habitId))
+      const snap = await getDocs(q)
+      logs = snap.docs.map((d) => d.data()).sort((a, b) => (b.log_date || '').localeCompare(a.log_date || ''))
+    } else {
+      throw err
+    }
+  }
 
   if (logs.length === 0) return
 
@@ -485,19 +589,23 @@ export async function getFriendStats(friendId: string) {
 }
 
 export async function searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
-  // Search by name prefix (Firestore limitation - no full-text search)
+  // Get all public profiles and filter client-side (Firestore has no full-text search)
   const q = query(
     collection(db, 'profiles'),
     where('is_public', '==', true),
     orderBy('name'),
-    firestoreLimit(20)
+    firestoreLimit(50)
   )
   const snap = await getDocs(q)
   const allUsers = snap.docs.map((d) => docToObj<User>(d))
-  // Client-side filter for name match
+  // Client-side filter for name, username, or email match
   const term = searchTerm.toLowerCase()
   return allUsers.filter(
-    (u) => u.id !== currentUserId && (u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term))
+    (u) =>
+      u.id !== currentUserId &&
+      (u.name?.toLowerCase().includes(term) ||
+        u.username?.toLowerCase().includes(term) ||
+        u.email?.toLowerCase().includes(term))
   )
 }
 

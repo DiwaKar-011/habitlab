@@ -49,6 +49,7 @@ export default function DailyLogPage() {
   const [milestoneMessage, setMilestoneMessage] = useState<string | null>(null)
   const [newBadgeIds, setNewBadgeIds] = useState<string[]>([])
   const [xpEarned, setXpEarned] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -77,8 +78,12 @@ export default function DailyLogPage() {
   }
 
   const handleSubmit = async () => {
-    if (!user) return
+    if (!user) {
+      setError('You must be signed in to log. Please sign in first.')
+      return
+    }
     setLoading(true)
+    setError(null)
     try {
       const today = new Date().toISOString().split('T')[0]
       const completed = step === 'yes'
@@ -157,8 +162,9 @@ export default function DailyLogPage() {
       }
 
       setStep('done')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to log', err)
+      setError(`Failed to log: ${err?.message || 'Unknown error'}`)
     }
     setLoading(false)
   }
@@ -172,6 +178,13 @@ export default function DailyLogPage() {
         <ArrowLeft size={16} />
         Back to Dashboard
       </Link>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm mb-4">
+          {error}
+        </div>
+      )}
 
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{habit.title}</h1>

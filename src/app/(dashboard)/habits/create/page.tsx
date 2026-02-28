@@ -79,6 +79,7 @@ export default function CreateHabitPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState(allSuggestions)
   const suggestRef = useRef<HTMLDivElement>(null)
@@ -161,7 +162,11 @@ export default function CreateHabitPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) return
+    setError(null)
+    if (!user) {
+      setError('You must be signed in to create an experiment. Please sign in first.')
+      return
+    }
     setLoading(true)
 
     try {
@@ -178,8 +183,16 @@ export default function CreateHabitPage() {
         target_days: targetDays,
       })
       router.push('/dashboard')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create habit', err)
+      const msg = err?.message || 'Unknown error'
+      if (msg.includes('permission') || msg.includes('PERMISSION_DENIED')) {
+        setError('Firestore permission denied. Make sure Firestore rules allow writes for authenticated users.')
+      } else if (msg.includes('not-found') || msg.includes('NOT_FOUND')) {
+        setError('Firestore database not found. Please create a Firestore database in the Firebase Console.')
+      } else {
+        setError(`Failed to create experiment: ${msg}`)
+      }
       setLoading(false)
     }
   }
@@ -444,6 +457,13 @@ export default function CreateHabitPage() {
             </div>
           </div>
         </motion.section>
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Submit */}
         <button

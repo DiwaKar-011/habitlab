@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [allLogs, setAllLogs] = useState<DailyLog[]>([])
   const [xpPoints, setXpPoints] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const displayName =
     authUser?.displayName ||
@@ -49,8 +50,14 @@ export default function DashboardPage() {
         setStreaks(s)
         setAllLogs(l)
         setXpPoints(p?.xp_points || 0)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Dashboard load error:', err)
+        const msg = err?.message || 'Unknown error'
+        if (msg.includes('index')) {
+          setError('Firestore needs a composite index. Check the browser console for a direct link to create it, or go to Firebase Console → Firestore → Indexes and create the required indexes.')
+        } else {
+          setError(`Failed to load dashboard: ${msg}`)
+        }
       }
       setLoading(false)
     }
@@ -76,6 +83,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
