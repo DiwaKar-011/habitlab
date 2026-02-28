@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sparkles } from 'lucide-react'
+import { X, Sparkles, Flame } from 'lucide-react'
 import { getRandomQuote, getRandomRoast } from '@/lib/motivationQuotes'
 
 const BUBBLE_INTERVAL_MIN = 3 * 60 * 1000    // min 3 minutes
@@ -78,13 +78,13 @@ export default function MotivationBubble() {
                   : 'bg-purple-100 dark:bg-purple-900/50'
               }`}
             >
-              {isRoast ? '🔥' : <Sparkles size={18} className="text-purple-500" />}
+              {isRoast ? <Flame size={18} className="text-red-500" /> : <Sparkles size={18} className="text-purple-500" />}
             </motion.div>
             <div>
               <p className={`text-xs font-bold mb-1 ${
                 isRoast ? 'text-red-600 dark:text-red-400' : 'text-purple-600 dark:text-purple-400'
               }`}>
-                {isRoast ? 'Reality Check 🔥' : 'Motivation Boost ✨'}
+                {isRoast ? 'Reality Check' : 'Motivation Boost'}
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 {message}

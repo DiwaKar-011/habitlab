@@ -67,13 +67,13 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (lastNRate < overallRate / 100 - 0.25) {
     insights.push({
       type: 'warning',
-      message: `⚠️ Drop alert: Your last ${recentCount} days have a ${lastNPct}% rate vs ${overallRate}% overall. You may be losing momentum — act now!`,
+      message: `Drop alert: Your last ${recentCount} days have a ${lastNPct}% rate vs ${overallRate}% overall. You may be losing momentum — act now!`,
       severity: 'high',
     })
   } else if (lastNRate > overallRate / 100 + 0.15) {
     insights.push({
       type: 'success',
-      message: `🚀 Trending up! Last ${recentCount} days: ${lastNPct}% vs overall ${overallRate}%. You're building real momentum!`,
+      message: `Trending up! Last ${recentCount} days: ${lastNPct}% vs overall ${overallRate}%. You're building real momentum!`,
       severity: 'low',
     })
   }
@@ -97,7 +97,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (timeBuckets[0].count > 0 && timeBuckets[0].count > timeBuckets[1].count) {
     insights.push({
       type: 'info',
-      message: `🕐 Peak time: You perform best in the ${timeBuckets[0].label} (${timeBuckets[0].count} completions). Try to schedule this habit in that window.`,
+      message: `Peak time: You perform best in the ${timeBuckets[0].label} (${timeBuckets[0].count} completions). Try to schedule this habit in that window.`,
       severity: 'low',
     })
   }
@@ -120,7 +120,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (completedMoods.length >= 3 && missedMoods.length >= 1 && avgCompletedMood > avgMissedMood + 0.5) {
     insights.push({
       type: 'success',
-      message: `😊 Mood boost: Average mood on completion days is ${avgCompletedMood.toFixed(1)}/5 vs ${avgMissedMood.toFixed(1)}/5 on missed days. This habit genuinely improves how you feel!`,
+      message: `Mood boost: Average mood on completion days is ${avgCompletedMood.toFixed(1)}/5 vs ${avgMissedMood.toFixed(1)}/5 on missed days. This habit genuinely improves how you feel!`,
       severity: 'medium',
     })
   } else if (missedMoods.length >= 2 && avgMissedMood > avgCompletedMood + 0.5) {
@@ -151,7 +151,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (longestStreak >= 3) {
     insights.push({
       type: currentStreak >= longestStreak ? 'success' : 'info',
-      message: `🔥 Longest streak: ${longestStreak} days | Current streak: ${currentStreak} days. ${
+      message: `Longest streak: ${longestStreak} days | Current streak: ${currentStreak} days. ${
         currentStreak >= longestStreak ? 'You\'re at your personal best — keep it going!' :
         currentStreak >= longestStreak * 0.5 ? 'You\'re halfway to your record — push through!' :
         `Your record is ${longestStreak} days. Start building toward it!`
@@ -173,7 +173,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (bestDay && worstDay && bestDay.name !== worstDay.name && dayStats.length >= 3) {
     insights.push({
       type: 'info',
-      message: `📅 Best day: ${bestDay.name} (${Math.round(bestDay.rate * 100)}% rate) | Weakest: ${worstDay.name} (${Math.round(worstDay.rate * 100)}%). Focus extra effort on ${worstDay.name}s.`,
+      message: `Best day: ${bestDay.name} (${Math.round(bestDay.rate * 100)}% rate) | Weakest: ${worstDay.name} (${Math.round(worstDay.rate * 100)}%). Focus extra effort on ${worstDay.name}s.`,
       severity: 'low',
     })
   }
@@ -190,7 +190,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
     const reasonLabels: Record<string, string> = { tired: 'being tired', busy: 'being busy', forgot: 'forgetting', low_motivation: 'low motivation', other: 'other reasons' }
     insights.push({
       type: 'warning',
-      message: `🎯 Top barrier: "${reasonLabels[topReason[0]] || topReason[0]}" caused ${topReason[1]} misses (${Math.round((topReason[1] / missedLogs.length) * 100)}% of all misses). Address this specific blocker to unlock progress.`,
+      message: `Top barrier: "${reasonLabels[topReason[0]] || topReason[0]}" caused ${topReason[1]} misses (${Math.round((topReason[1] / missedLogs.length) * 100)}% of all misses). Address this specific blocker to unlock progress.`,
       severity: 'medium',
     })
   }
@@ -203,7 +203,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
     const avgEnergy = completedEnergy.reduce((a, b) => a + b, 0) / completedEnergy.length
     insights.push({
       type: 'info',
-      message: `⚡ Average energy on completion days: ${avgEnergy.toFixed(1)}/5. ${
+      message: `Average energy on completion days: ${avgEnergy.toFixed(1)}/5. ${
         avgEnergy >= 4 ? 'High energy fuels your habit — protect your energy levels!' :
         avgEnergy >= 3 ? 'Moderate energy works for you. Consistency matters more than peak energy.' :
         'You complete even on low-energy days — that shows real discipline!'
@@ -216,7 +216,7 @@ export function generateInsights(logs: DailyLog[]): Insight[] {
   if (overallRate >= 95 && totalLogs >= 10) {
     insights.push({
       type: 'info',
-      message: '💡 Pro tip: Honest logging builds real habits. If you\'re marking tasks done without actually doing them, you\'re only cheating yourself. Real change comes from genuine effort — even imperfect data is more valuable than fake streaks.',
+      message: 'Pro tip: Honest logging builds real habits. If you\'re marking tasks done without actually doing them, you\'re only cheating yourself. Real change comes from genuine effort — even imperfect data is more valuable than fake streaks.',
       severity: 'medium',
     })
   }

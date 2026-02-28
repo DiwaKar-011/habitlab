@@ -697,48 +697,48 @@ export async function celebrateStreakMilestone(userId: string, habitId: string, 
 // ── SEED BADGES (expanded) ──────────────────────────────────
 const BADGE_DEFINITIONS = [
   // Streak badges
-  { id: 'streak_7', name: 'Flame Initiate', description: 'Survive a 7-day streak', icon_url: '🔥', condition: 'streak_7', category: 'streak', tier: 1 },
-  { id: 'streak_14', name: 'Blaze Runner', description: 'Forge a 14-day streak', icon_url: '🔥🔥', condition: 'streak_14', category: 'streak', tier: 2 },
-  { id: 'streak_30', name: 'Inferno Warden', description: 'Conquer a 30-day streak', icon_url: '🏆', condition: 'streak_30', category: 'streak', tier: 3 },
-  { id: 'streak_50', name: 'Phoenix Ascendant', description: 'Blaze through 50 days', icon_url: '⚡', condition: 'streak_50', category: 'streak', tier: 4 },
-  { id: 'streak_100', name: 'Eternal Flame Lord', description: 'Legendary 100-day streak', icon_url: '👑', condition: 'streak_100', category: 'streak', tier: 5 },
+  { id: 'streak_7', name: 'Flame Initiate', description: 'Survive a 7-day streak', icon_url: 'S7', condition: 'streak_7', category: 'streak', tier: 1 },
+  { id: 'streak_14', name: 'Blaze Runner', description: 'Forge a 14-day streak', icon_url: 'S14', condition: 'streak_14', category: 'streak', tier: 2 },
+  { id: 'streak_30', name: 'Inferno Warden', description: 'Conquer a 30-day streak', icon_url: 'S30', condition: 'streak_30', category: 'streak', tier: 3 },
+  { id: 'streak_50', name: 'Phoenix Ascendant', description: 'Blaze through 50 days', icon_url: 'S50', condition: 'streak_50', category: 'streak', tier: 4 },
+  { id: 'streak_100', name: 'Eternal Flame Lord', description: 'Legendary 100-day streak', icon_url: 'S100', condition: 'streak_100', category: 'streak', tier: 5 },
   // Fitness badges
-  { id: 'fitness_10', name: 'Iron Recruit', description: 'Complete 10 fitness quests', icon_url: '💪', condition: 'fitness_10', category: 'fitness', tier: 1 },
-  { id: 'fitness_50', name: 'Steel Gladiator', description: 'Complete 50 fitness quests', icon_url: '🏋️', condition: 'fitness_50', category: 'fitness', tier: 2 },
-  { id: 'fitness_100', name: 'Titan of Strength', description: 'Complete 100 fitness quests', icon_url: '🥇', condition: 'fitness_100', category: 'fitness', tier: 3 },
+  { id: 'fitness_10', name: 'Iron Recruit', description: 'Complete 10 fitness quests', icon_url: 'FIT', condition: 'fitness_10', category: 'fitness', tier: 1 },
+  { id: 'fitness_50', name: 'Steel Gladiator', description: 'Complete 50 fitness quests', icon_url: 'GYM', condition: 'fitness_50', category: 'fitness', tier: 2 },
+  { id: 'fitness_100', name: 'Titan of Strength', description: 'Complete 100 fitness quests', icon_url: '#1', condition: 'fitness_100', category: 'fitness', tier: 3 },
   // Study badges
-  { id: 'study_10', name: 'Scroll Seeker', description: 'Complete 10 study quests', icon_url: '📖', condition: 'study_10', category: 'study', tier: 1 },
-  { id: 'study_50', name: 'Lore Keeper', description: 'Complete 50 study quests', icon_url: '📚', condition: 'study_50', category: 'study', tier: 2 },
-  { id: 'study_100', name: 'Arcane Scholar', description: 'Complete 100 study quests', icon_url: '🎓', condition: 'study_100', category: 'study', tier: 3 },
+  { id: 'study_10', name: 'Scroll Seeker', description: 'Complete 10 study quests', icon_url: 'STD', condition: 'study_10', category: 'study', tier: 1 },
+  { id: 'study_50', name: 'Lore Keeper', description: 'Complete 50 study quests', icon_url: 'EDU', condition: 'study_50', category: 'study', tier: 2 },
+  { id: 'study_100', name: 'Arcane Scholar', description: 'Complete 100 study quests', icon_url: 'PHD', condition: 'study_100', category: 'study', tier: 3 },
   // Mindset badges
-  { id: 'mindset_10', name: 'Mind Spark', description: 'Complete 10 mindset quests', icon_url: '🧠', condition: 'mindset_10', category: 'mindset', tier: 1 },
-  { id: 'mindset_50', name: 'Zen Overlord', description: 'Complete 50 mindset quests', icon_url: '🧘', condition: 'mindset_50', category: 'mindset', tier: 2 },
+  { id: 'mindset_10', name: 'Mind Spark', description: 'Complete 10 mindset quests', icon_url: 'MND', condition: 'mindset_10', category: 'mindset', tier: 1 },
+  { id: 'mindset_50', name: 'Zen Overlord', description: 'Complete 50 mindset quests', icon_url: 'ZEN', condition: 'mindset_50', category: 'mindset', tier: 2 },
   // Eco badges
-  { id: 'eco_10', name: 'Sapling Guardian', description: 'Complete 10 eco quests', icon_url: '🌱', condition: 'eco_10', category: 'eco', tier: 1 },
-  { id: 'eco_50', name: 'Earth Sentinel', description: 'Complete 50 eco quests', icon_url: '🌍', condition: 'eco_50', category: 'eco', tier: 2 },
+  { id: 'eco_10', name: 'Sapling Guardian', description: 'Complete 10 eco quests', icon_url: 'ECO', condition: 'eco_10', category: 'eco', tier: 1 },
+  { id: 'eco_50', name: 'Earth Sentinel', description: 'Complete 50 eco quests', icon_url: 'GRN', condition: 'eco_50', category: 'eco', tier: 2 },
   // Health badges
-  { id: 'health_10', name: 'Vitality Spark', description: 'Complete 10 health quests', icon_url: '❤️', condition: 'health_10', category: 'health', tier: 1 },
-  { id: 'health_50', name: 'Heart Guardian', description: 'Complete 50 health quests', icon_url: '💖', condition: 'health_50', category: 'health', tier: 2 },
+  { id: 'health_10', name: 'Vitality Spark', description: 'Complete 10 health quests', icon_url: 'HP', condition: 'health_10', category: 'health', tier: 1 },
+  { id: 'health_50', name: 'Heart Guardian', description: 'Complete 50 health quests', icon_url: 'HP+', condition: 'health_50', category: 'health', tier: 2 },
   // Focus badges
-  { id: 'focus_10', name: 'Sharpshooter', description: 'Complete 10 focus quests', icon_url: '🎯', condition: 'focus_10', category: 'focus', tier: 1 },
-  { id: 'focus_50', name: 'Laser Mind', description: 'Complete 50 focus quests', icon_url: '🔬', condition: 'focus_50', category: 'focus', tier: 2 },
+  { id: 'focus_10', name: 'Sharpshooter', description: 'Complete 10 focus quests', icon_url: 'FOC', condition: 'focus_10', category: 'focus', tier: 1 },
+  { id: 'focus_50', name: 'Laser Mind', description: 'Complete 50 focus quests', icon_url: 'AIM', condition: 'focus_50', category: 'focus', tier: 2 },
   // Special badges
-  { id: 'consistency_90', name: 'Clockwork Phantom', description: '90%+ weekly completion', icon_url: '⏱️', condition: 'consistency_90', category: 'special', tier: 3 },
-  { id: 'experiment_complete', name: 'Lab Pioneer', description: 'Complete your first experiment', icon_url: '🧪', condition: 'experiment_complete', category: 'special', tier: 1 },
+  { id: 'consistency_90', name: 'Clockwork Phantom', description: '90%+ weekly completion', icon_url: '90%', condition: 'consistency_90', category: 'special', tier: 3 },
+  { id: 'experiment_complete', name: 'Lab Pioneer', description: 'Complete your first experiment', icon_url: 'LAB', condition: 'experiment_complete', category: 'special', tier: 1 },
   // Learning badges
-  { id: 'videos_5', name: 'Curious Wanderer', description: 'Watch 5 videos', icon_url: '📺', condition: 'videos_5', category: 'learning', tier: 1 },
-  { id: 'videos_10', name: 'Knowledge Sage', description: 'Watch 10 videos', icon_url: '📚', condition: 'videos_10', category: 'learning', tier: 2 },
+  { id: 'videos_5', name: 'Curious Wanderer', description: 'Watch 5 videos', icon_url: 'V5', condition: 'videos_5', category: 'learning', tier: 1 },
+  { id: 'videos_10', name: 'Knowledge Sage', description: 'Watch 10 videos', icon_url: 'V10', condition: 'videos_10', category: 'learning', tier: 2 },
   // Social badges
-  { id: 'friend_1', name: 'Alliance Forged', description: 'Add your first friend', icon_url: '🤝', condition: 'friend_1', category: 'social', tier: 1 },
-  { id: 'friend_5', name: 'Guild Commander', description: 'Have 5 friends', icon_url: '👥', condition: 'friend_5', category: 'social', tier: 2 },
+  { id: 'friend_1', name: 'Alliance Forged', description: 'Add your first friend', icon_url: '+1', condition: 'friend_1', category: 'social', tier: 1 },
+  { id: 'friend_5', name: 'Guild Commander', description: 'Have 5 friends', icon_url: '+5', condition: 'friend_5', category: 'social', tier: 2 },
   // XP badges
-  { id: 'xp_500', name: 'XP Scavenger', description: 'Earn 500 XP', icon_url: '⚡', condition: 'xp_500', category: 'xp', tier: 1 },
-  { id: 'xp_1000', name: 'XP Warlord', description: 'Earn 1000 XP', icon_url: '💫', condition: 'xp_1000', category: 'xp', tier: 2 },
-  { id: 'xp_5000', name: 'XP Demi-God', description: 'Earn 5000 XP', icon_url: '🌟', condition: 'xp_5000', category: 'xp', tier: 3 },
+  { id: 'xp_500', name: 'XP Scavenger', description: 'Earn 500 XP', icon_url: 'XP1', condition: 'xp_500', category: 'xp', tier: 1 },
+  { id: 'xp_1000', name: 'XP Warlord', description: 'Earn 1000 XP', icon_url: 'XP2', condition: 'xp_1000', category: 'xp', tier: 2 },
+  { id: 'xp_5000', name: 'XP Demi-God', description: 'Earn 5000 XP', icon_url: 'XP3', condition: 'xp_5000', category: 'xp', tier: 3 },
   // First log badge
-  { id: 'first_log', name: 'Genesis Strike', description: 'Log your very first day', icon_url: '✨', condition: 'first_log', category: 'special', tier: 1 },
+  { id: 'first_log', name: 'Genesis Strike', description: 'Log your very first day', icon_url: '1ST', condition: 'first_log', category: 'special', tier: 1 },
   // Multi-habit badge
-  { id: 'multi_habit_3', name: 'Multi-Tasker', description: 'Run 3 active habits', icon_url: '🎪', condition: 'multi_habit_3', category: 'special', tier: 2 },
+  { id: 'multi_habit_3', name: 'Multi-Tasker', description: 'Run 3 active habits', icon_url: 'x3', condition: 'multi_habit_3', category: 'special', tier: 2 },
 ]
 
 export async function seedBadges() {

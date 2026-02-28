@@ -93,7 +93,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Welcome back, {displayName.split(' ')[0]} 👋
+          Welcome back, {displayName.split(' ')[0]}
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
           Track your experiments and build lasting habits.
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">
-                      {categoryIcons[habit.category] || '📋'}
+                      {categoryIcons[habit.category] || 'GEN'}
                     </span>
                     <div>
                       <Link

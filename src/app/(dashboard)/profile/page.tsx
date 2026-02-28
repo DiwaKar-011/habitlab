@@ -446,34 +446,14 @@ export default function ProfilePage() {
               </div>
             )}
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{profile?.email}</p>
-            {/* Username */}
+            {/* Username — permanent, cannot be changed */}
             <div className="mt-1">
-              {editingUsername ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 text-sm">@</span>
-                  <input
-                    value={usernameInput}
-                    onChange={(e) => { setUsernameInput(e.target.value.replace(/[^a-zA-Z0-9_]/g, '')); setUsernameError('') }}
-                    className="text-sm bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    autoFocus
-                    maxLength={20}
-                    placeholder="username"
-                    onKeyDown={(e) => e.key === 'Enter' && handleUsernameSave()}
-                  />
-                  <button onClick={handleUsernameSave} disabled={checkingUsername} className="text-green-600 p-1"><Check size={16} /></button>
-                  <button onClick={() => { setEditingUsername(false); setUsernameError(''); setUsernameInput(profile?.username || '') }} className="text-slate-400 p-1"><X size={16} /></button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-brand-600 dark:text-brand-400 font-medium">
-                    @{profile?.username || 'set_username'}
-                  </span>
-                  <button onClick={() => { setEditingUsername(true); setUsernameInput(profile?.username || '') }} className="text-slate-400 hover:text-brand-600 transition-colors">
-                    <Edit3 size={12} />
-                  </button>
-                </div>
-              )}
-              {usernameError && <p className="text-xs text-red-500 mt-0.5">{usernameError}</p>}
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm text-brand-600 dark:text-brand-400 font-medium">
+                  @{profile?.username || 'not_set'}
+                </span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">permanent</span>
+              </div>
             </div>
             {personality && (
               <div className="mt-2 inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium px-3 py-1 rounded-full">
@@ -646,7 +626,7 @@ export default function ProfilePage() {
                         </span>
                       )}
                       <span className={`text-2xl mb-1 ${earned ? '' : 'grayscale'}`}>
-                        {badge.icon_url || '🏅'}
+                        {badge.icon_url || '--'}
                       </span>
                       <p className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">
                         {badge.name}
@@ -764,7 +744,7 @@ export default function ProfilePage() {
                           )}
 
                           {/* XP */}
-                          <span className="text-xs text-slate-400 font-medium hidden sm:inline">⚡ {f.friend_profile?.xp_points || 0}</span>
+                          <span className="text-xs text-slate-400 font-medium hidden sm:inline">{f.friend_profile?.xp_points || 0} XP</span>
 
                           {/* Expand arrow */}
                           <ChevronDown
@@ -1103,7 +1083,7 @@ export default function ProfilePage() {
               </div>
               {statsToast.streaks?.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-orange-500">🔥</span>
+                  <Flame size={14} className="text-orange-500" />
                   <span className="text-slate-600 dark:text-slate-300 font-medium">
                     Best streak: {Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
                   </span>
@@ -1115,7 +1095,7 @@ export default function ProfilePage() {
                   <div className="flex flex-wrap gap-1.5">
                     {statsToast.badges.slice(0, 8).map((b: any) => (
                       <div key={b.id} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1 text-center" title={b.badge?.name}>
-                        <span className="text-sm">{b.badge?.icon_url || '🏅'}</span>
+                        <span className="text-sm">{b.badge?.icon_url || '--'}</span>
                         <p className="text-[8px] text-slate-500 truncate max-w-[50px]">{b.badge?.name}</p>
                       </div>
                     ))}
@@ -1139,7 +1119,7 @@ export default function ProfilePage() {
                             <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-[10px] text-slate-500 w-8 text-right">{pct}%</span>
-                          <span className="text-[10px] text-slate-400 w-8 text-right">🔥{streak?.current_streak || 0}</span>
+                          <span className="text-[10px] text-orange-400 w-8 text-right">{streak?.current_streak || 0}d</span>
                         </div>
                       )
                     })}

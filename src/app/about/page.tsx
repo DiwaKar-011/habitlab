@@ -44,9 +44,9 @@ export default function AboutPage() {
           </p>
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { step: 'Cue', desc: 'A trigger that tells your brain to start the behavior. It could be a time (7 AM), location (gym), or emotion (stress).', color: 'bg-blue-50 border-blue-200 text-blue-800', emoji: '🔔' },
-              { step: 'Routine', desc: 'The behavior itself — the habit you actually perform. This is what you\'re tracking in HabitLab.', color: 'bg-green-50 border-green-200 text-green-800', emoji: '🔄' },
-              { step: 'Reward', desc: 'The positive outcome your brain gets. Dopamine is released, reinforcing the neural pathway for next time.', color: 'bg-amber-50 border-amber-200 text-amber-800', emoji: '🎁' },
+              { step: 'Cue', desc: 'A trigger that tells your brain to start the behavior. It could be a time (7 AM), location (gym), or emotion (stress).', color: 'bg-blue-50 border-blue-200 text-blue-800', emoji: 'CUE' },
+              { step: 'Routine', desc: 'The behavior itself — the habit you actually perform. This is what you\'re tracking in HabitLab.', color: 'bg-green-50 border-green-200 text-green-800', emoji: 'DO' },
+              { step: 'Reward', desc: 'The positive outcome your brain gets. Dopamine is released, reinforcing the neural pathway for next time.', color: 'bg-amber-50 border-amber-200 text-amber-800', emoji: 'WIN' },
             ].map((item, i) => (
               <div key={i} className={`rounded-xl border p-5 ${item.color}`}>
                 <span className="text-3xl">{item.emoji}</span>

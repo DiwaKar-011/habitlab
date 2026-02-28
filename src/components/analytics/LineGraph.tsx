@@ -56,7 +56,7 @@ export default function LineGraph({ logs, range = '30' }: LineGraphProps) {
 
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200">
-      <h3 className="text-sm font-medium text-slate-700 mb-4">📈 Completion Rate Over Time</h3>
+      <h3 className="text-sm font-medium text-slate-700 mb-4">Completion Rate Over Time</h3>
       <ResponsiveContainer width="100%" height={250}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

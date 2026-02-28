@@ -20,7 +20,7 @@ export default function DopamineMeter({ completedToday, totalHabits }: DopamineM
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-slate-600">🧠 Dopamine Meter</span>
+        <span className="text-sm font-medium text-slate-600">Dopamine Meter</span>
         <span className="text-xs text-slate-400">
           {completedToday}/{totalHabits} today
         </span>
@@ -39,7 +39,7 @@ export default function DopamineMeter({ completedToday, totalHabits }: DopamineM
           animate={{ opacity: 1 }}
           className="text-xs text-green-600 font-medium mt-1.5"
         >
-          ✨ All habits completed! Dopamine reward unlocked!
+          All habits completed! Dopamine reward unlocked!
         </motion.p>
       )}
     </div>

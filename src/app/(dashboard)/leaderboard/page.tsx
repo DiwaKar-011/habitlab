@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Users, UserPlus, Search, X, Eye, Loader2 } from 'lucide-react'
+import { Trophy, Users, UserPlus, Search, X, Eye, Loader2, Flame } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { getLeaderboard, getFriends, sendFriendRequest, getFriendStats, searchUsers, getUserRank, getTotalUserCount } from '@/lib/db'
 import type { User } from '@/types'
 
-const rankEmoji = ['🥇', '🥈', '🥉']
+const rankLabels = ['#1', '#2', '#3']
 
 interface LeaderboardUser {
   id: string
@@ -176,15 +176,15 @@ export default function LeaderboardPage() {
               <div>
                 <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Your Global Rank</p>
                 <p className="text-2xl font-bold">
-                  {myRank <= 3 ? rankEmoji[myRank - 1] : `#${myRank}`} out of {totalUsers} {totalUsers === 1 ? 'user' : 'users'}
+                  {myRank <= 3 ? rankLabels[myRank - 1] : `#${myRank}`} out of {totalUsers} {totalUsers === 1 ? 'user' : 'users'}
                 </p>
                 <p className="text-white/70 text-xs mt-0.5">
-                  {myRank === 1 ? '🏆 You\'re #1! Keep it up!' : myRank <= 3 ? '🔥 Top 3! Amazing!' : myRank <= 10 ? '⚡ Top 10! Great work!' : 'Keep logging habits to climb the ranks!'}
+                  {myRank === 1 ? 'You\'re #1! Keep it up!' : myRank <= 3 ? 'Top 3! Amazing!' : myRank <= 10 ? 'Top 10! Great work!' : 'Keep logging habits to climb the ranks!'}
                 </p>
               </div>
             </div>
             <div className="text-right hidden sm:block">
-              <p className="text-3xl font-bold">⚡ {leaderboard.find(u => u.isCurrentUser)?.xp_points || 0}</p>
+              <p className="text-3xl font-bold">{leaderboard.find(u => u.isCurrentUser)?.xp_points || 0} XP</p>
               <p className="text-white/70 text-xs">Total XP</p>
             </div>
           </div>
@@ -196,7 +196,7 @@ export default function LeaderboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {currentList.slice(0, 3).map((u, i) => (
             <motion.div key={u.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className={`bg-white dark:bg-slate-900 rounded-xl border p-5 text-center ${u.isCurrentUser ? 'border-brand-300 dark:border-brand-700 ring-2 ring-brand-100 dark:ring-brand-900' : 'border-slate-200 dark:border-slate-800'}`}>
-              <span className="text-3xl">{rankEmoji[i]}</span>
+              <span className="text-3xl font-bold">{rankLabels[i]}</span>
               <div className="w-12 h-12 rounded-full mx-auto mt-2 overflow-hidden">
                 {u.avatar_url ? (
                   <img src={u.avatar_url} alt={u.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -239,7 +239,7 @@ export default function LeaderboardPage() {
             <tbody>
               {currentList.map((u, i) => (
                 <motion.tr key={u.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.02 }} className={`border-b border-slate-50 dark:border-slate-800 ${u.isCurrentUser ? 'bg-brand-50 dark:bg-brand-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                  <td className="py-3 px-4 text-sm font-medium text-slate-600 dark:text-slate-300">{rankEmoji[i] || `#${i + 1}`}</td>
+                  <td className="py-3 px-4 text-sm font-medium text-slate-600 dark:text-slate-300">{rankLabels[i] || `#${i + 1}`}</td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 text-right">⚡ {u.xp_points}</td>
+                  <td className="py-3 px-4 text-sm font-bold text-slate-700 dark:text-slate-200 text-right">{u.xp_points} XP</td>
                   <td className="py-3 px-4 text-right hidden sm:table-cell">
                     {u.isFriend && !u.isCurrentUser && (
                       <button onClick={() => handleViewStats(u.id)} className="text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 rounded hover:bg-brand-50">View Stats</button>
@@ -386,7 +386,7 @@ export default function LeaderboardPage() {
               {/* Streaks summary */}
               {statsToast.streaks?.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-orange-500">🔥</span>
+                  <Flame size={14} className="text-orange-500" />
                   <span className="text-slate-600 dark:text-slate-300 font-medium">
                     Best streak: {Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
                   </span>
@@ -406,7 +406,7 @@ export default function LeaderboardPage() {
                         className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1 text-center"
                         title={b.badge?.name}
                       >
-                        <span className="text-sm">{b.badge?.icon_url || '🏅'}</span>
+                        <span className="text-sm">{b.badge?.icon_url || '--'}</span>
                         <p className="text-[8px] text-slate-500 truncate max-w-[50px]">{b.badge?.name}</p>
                       </div>
                     ))}
@@ -436,7 +436,7 @@ export default function LeaderboardPage() {
                             <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-[10px] text-slate-500 w-8 text-right">{pct}%</span>
-                          <span className="text-[10px] text-slate-400 w-8 text-right">🔥{streak?.current_streak || 0}</span>
+                          <span className="text-[10px] text-orange-400 w-8 text-right">{streak?.current_streak || 0}d</span>
                         </div>
                       )
                     })}

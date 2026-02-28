@@ -15,19 +15,19 @@ interface FailureChartProps {
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6']
 
 const reasonLabels: Record<string, string> = {
-  tired: '😴 Tired',
-  busy: '⏰ Busy',
-  forgot: '🤔 Forgot',
-  low_motivation: '😞 Low Motivation',
-  other: '📝 Other',
-  unknown: '❓ Unknown',
+  tired: 'Tired',
+  busy: 'Busy',
+  forgot: 'Forgot',
+  low_motivation: 'Low Motivation',
+  other: 'Other',
+  unknown: 'Unknown',
 }
 
 export default function FailureChart({ reasons }: FailureChartProps) {
   if (reasons.length === 0) {
     return (
       <div className="text-center text-slate-400 text-sm py-8">
-        No failure data yet — keep it up! 🎉
+        No failure data yet — keep it up!
       </div>
     )
   }
@@ -39,7 +39,7 @@ export default function FailureChart({ reasons }: FailureChartProps) {
 
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200">
-      <h3 className="text-sm font-medium text-slate-700 mb-4">🔍 Failure Reason Breakdown</h3>
+      <h3 className="text-sm font-medium text-slate-700 mb-4">Failure Reason Breakdown</h3>
       <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie

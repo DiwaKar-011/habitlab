@@ -1,12 +1,12 @@
 import { Badge, UserBadge, Streak } from '@/types'
 
 const badgeDefinitions: Badge[] = [
-  { id: '1', name: 'Consistency Starter', description: 'Complete a habit 7 days in a row', condition: 'streak_7', icon_url: '🔥' },
-  { id: '2', name: 'Habit Champion', description: 'Maintain a 30-day streak', condition: 'streak_30', icon_url: '🏆' },
-  { id: '3', name: 'Precision Performer', description: 'Achieve 90% weekly completion', condition: 'consistency_90', icon_url: '🎯' },
-  { id: '4', name: 'Challenge Victor', description: 'Win a public challenge', condition: 'challenge_winner', icon_url: '👑' },
-  { id: '5', name: 'Scholar', description: 'Watch 10 habit videos', condition: 'videos_10', icon_url: '📚' },
-  { id: '6', name: 'Experimenter', description: 'Complete your first experiment', condition: 'experiment_complete', icon_url: '🧪' },
+  { id: '1', name: 'Consistency Starter', description: 'Complete a habit 7 days in a row', condition: 'streak_7', icon_url: 'S7' },
+  { id: '2', name: 'Habit Champion', description: 'Maintain a 30-day streak', condition: 'streak_30', icon_url: 'S30' },
+  { id: '3', name: 'Precision Performer', description: 'Achieve 90% weekly completion', condition: 'consistency_90', icon_url: '90%' },
+  { id: '4', name: 'Challenge Victor', description: 'Win a public challenge', condition: 'challenge_winner', icon_url: 'VIC' },
+  { id: '5', name: 'Scholar', description: 'Watch 10 habit videos', condition: 'videos_10', icon_url: 'EDU' },
+  { id: '6', name: 'Experimenter', description: 'Complete your first experiment', condition: 'experiment_complete', icon_url: 'LAB' },
 ]
 
 export function getAllBadges(): Badge[] {

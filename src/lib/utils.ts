@@ -40,12 +40,12 @@ export const categoryColors: Record<string, string> = {
 }
 
 export const categoryIcons: Record<string, string> = {
-  fitness: '💪',
-  study: '📚',
-  focus: '🎯',
-  eco: '🌱',
-  health: '❤️',
-  mindset: '🧠',
+  fitness: 'FIT',
+  study: 'STD',
+  focus: 'FOC',
+  eco: 'ECO',
+  health: 'HP',
+  mindset: 'MND',
 }
 
 // ─── Security: Input Sanitization ────────────────────

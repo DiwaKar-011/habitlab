@@ -10,12 +10,12 @@ import { useAuth } from '@/components/AuthProvider'
 import type { HabitCategory } from '@/types'
 
 const categories = [
-  { value: 'fitness', label: 'Fitness', icon: '💪' },
-  { value: 'study', label: 'Study', icon: '📚' },
-  { value: 'focus', label: 'Focus', icon: '🎯' },
-  { value: 'eco', label: 'Eco', icon: '🌱' },
-  { value: 'health', label: 'Health', icon: '❤️' },
-  { value: 'mindset', label: 'Mindset', icon: '🧠' },
+  { value: 'fitness', label: 'Fitness', icon: 'FIT' },
+  { value: 'study', label: 'Study', icon: 'STD' },
+  { value: 'focus', label: 'Focus', icon: 'FOC' },
+  { value: 'eco', label: 'Eco', icon: 'ECO' },
+  { value: 'health', label: 'Health', icon: 'HP' },
+  { value: 'mindset', label: 'Mindset', icon: 'MND' },
 ]
 
 // ── Experiment Suggestions Database ──────────────────
@@ -471,7 +471,7 @@ export default function CreateHabitPage() {
           disabled={loading || !title || !category}
           className="w-full bg-brand-600 text-white py-3 rounded-xl font-semibold text-lg hover:bg-brand-700 disabled:opacity-50 transition-all shadow-lg shadow-brand-500/20"
         >
-          {loading ? 'Creating Experiment...' : '🧪 Start Experiment'}
+          {loading ? 'Creating Experiment...' : 'Start Experiment'}
         </button>
       </form>
     </div>

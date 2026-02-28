@@ -154,7 +154,7 @@ export default function UsernameGate({ children }: { children: React.ReactNode }
             )}
 
             <p className="text-xs text-slate-400 mb-4">
-              3-20 characters. Lowercase letters, numbers, . and _ only. This cannot be easily changed later.
+              3-20 characters. Lowercase letters, numbers, . and _ only. This is permanent and cannot be changed.
             </p>
 
             <button

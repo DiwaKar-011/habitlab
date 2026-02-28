@@ -54,8 +54,8 @@ export default function PageWrapper({
       {user && !isGuest && <MotivationBubble />}
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 md:hidden safe-bottom">
-        <div className="flex items-center justify-around h-16 px-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 md:hidden safe-bottom">
+        <div className="flex items-center justify-around h-[60px] px-1">
           {bottomNavItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + '/')
@@ -69,8 +69,8 @@ export default function PageWrapper({
                     : 'text-slate-400 dark:text-slate-500'
                 }`}
               >
-                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+                <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span className="text-[11px] font-medium leading-tight">{item.label}</span>
               </Link>
             )
           })}

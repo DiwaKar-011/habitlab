@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen,
@@ -13,18 +13,19 @@ import {
   ChevronDown,
   Star,
   Filter,
+  AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { getHabits } from '@/lib/db'
 import type { Habit, HabitCategory } from '@/types'
 
 const CATEGORY_ICONS: Record<string, string> = {
-  fitness: '💪',
-  study: '📖',
-  focus: '🎯',
-  eco: '🌱',
-  health: '❤️',
-  mindset: '🧠',
+  fitness: 'FIT',
+  study: 'STD',
+  focus: 'FOC',
+  eco: 'ECO',
+  health: 'HP',
+  mindset: 'MND',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -49,6 +50,85 @@ interface BookRec {
   author: string
   description: string
   searchQuery: string
+}
+
+// Thumbnail-first video card — click to load iframe (better mobile perf + handles unavailable videos)
+function VideoCard({ video, index, category }: { video: VideoRec; index: number; category: string }) {
+  const [playing, setPlaying] = useState(false)
+  const [imgError, setImgError] = useState(false)
+  const ytId = video.youtube_id || ''
+  const thumbUrl = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : ''
+  const watchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : video.youtube_search_url
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all"
+    >
+      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+        {playing && ytId ? (
+          <iframe
+            className="absolute inset-0 w-full h-full"
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`}
+            title={video.query}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : imgError || !ytId ? (
+          /* Fallback when thumbnail fails or no ID */
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 gap-2"
+          >
+            <AlertTriangle size={28} className="text-slate-400" />
+            <span className="text-xs text-slate-500 text-center px-4">Tap to watch on YouTube</span>
+          </a>
+        ) : (
+          /* Thumbnail preview — click to play inline */
+          <button
+            onClick={() => setPlaying(true)}
+            className="absolute inset-0 w-full h-full group"
+            aria-label={`Play ${video.query}`}
+          >
+            <img
+              src={thumbUrl}
+              alt={video.query}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <Play size={24} className="text-white ml-1" fill="white" />
+              </div>
+            </div>
+          </button>
+        )}
+      </div>
+      <div className="p-3">
+        <h4 className="font-semibold text-slate-800 dark:text-white text-sm leading-snug line-clamp-2">
+          {video.query}
+        </h4>
+        <div className="flex items-center gap-2 mt-2">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${CATEGORY_COLORS[category] || ''}`}>
+            {category}
+          </span>
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-slate-400 hover:text-red-500 flex items-center gap-0.5 transition-colors ml-auto"
+          >
+            <ExternalLink size={10} /> YouTube
+          </a>
+        </div>
+      </div>
+    </motion.div>
+  )
 }
 
 export default function LearnPage() {
@@ -270,43 +350,7 @@ export default function LearnPage() {
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2">
                   {videos.map((v, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all"
-                    >
-                      {/* Embedded YouTube Player */}
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute inset-0 w-full h-full rounded-t-xl"
-                          src={`https://www.youtube.com/embed/${v.youtube_id || ''}`}
-                          title={v.query}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-slate-800 dark:text-white text-sm">
-                          {v.query}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${CATEGORY_COLORS[selectedCategory]}`}>
-                            {CATEGORY_ICONS[selectedCategory]} {selectedCategory}
-                          </span>
-                          <a
-                            href={v.youtube_search_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-slate-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
-                          >
-                            <ExternalLink size={10} /> Open on YouTube
-                          </a>
-                        </div>
-                      </div>
-                    </motion.div>
+                    <VideoCard key={i} video={v} index={i} category={selectedCategory} />
                   ))}
                 </div>
               )}

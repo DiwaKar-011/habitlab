@@ -13,19 +13,19 @@ import { useAuth } from '@/components/AuthProvider'
 import type { Habit, Streak } from '@/types'
 
 const moodEmojis = [
-  { value: 1, emoji: '😢', label: 'Terrible' },
-  { value: 2, emoji: '😞', label: 'Bad' },
-  { value: 3, emoji: '😐', label: 'Okay' },
-  { value: 4, emoji: '😊', label: 'Good' },
-  { value: 5, emoji: '😄', label: 'Great' },
+  { value: 1, emoji: '--', label: 'Terrible' },
+  { value: 2, emoji: '-', label: 'Bad' },
+  { value: 3, emoji: '~', label: 'Okay' },
+  { value: 4, emoji: '+', label: 'Good' },
+  { value: 5, emoji: '++', label: 'Great' },
 ]
 
 const failureReasons = [
-  { value: 'tired', label: '😴 Tired' },
-  { value: 'busy', label: '⏰ Busy' },
-  { value: 'forgot', label: '🤔 Forgot' },
-  { value: 'low_motivation', label: '😞 Low Motivation' },
-  { value: 'other', label: '📝 Other' },
+  { value: 'tired', label: 'Tired' },
+  { value: 'busy', label: 'Busy' },
+  { value: 'forgot', label: 'Forgot' },
+  { value: 'low_motivation', label: 'Low Motivation' },
+  { value: 'other', label: 'Other' },
 ]
 
 export default function DailyLogPage() {
@@ -125,7 +125,7 @@ export default function DailyLogPage() {
             habit_id: habitId,
           })
           if (getPermissionStatus() === 'granted') {
-            sendBrowserNotification(`🔥 ${newStreakCount}-Day Streak!`, msg)
+            sendBrowserNotification(`${newStreakCount}-Day Streak!`, msg)
           }
         }
 
@@ -139,12 +139,12 @@ export default function DailyLogPage() {
         const roast = getRandomRoast()
         addNotification({
           type: 'roast',
-          title: 'Missed Day Roast 🔥',
+          title: 'Missed Day Roast',
           message: roast,
           habit_id: habitId,
         })
         if (getPermissionStatus() === 'granted') {
-          sendBrowserNotification('Missed Day? 👀', roast)
+          sendBrowserNotification('Missed Day?', roast)
         }
       }
 
@@ -155,7 +155,7 @@ export default function DailyLogPage() {
         for (const badgeId of awarded) {
           addNotification({
             type: 'badge',
-            title: 'New Badge Earned! 🏅',
+            title: 'New Badge Earned!',
             message: `You earned the "${badgeId}" badge!`,
           })
         }
@@ -193,7 +193,7 @@ export default function DailyLogPage() {
         </p>
         {streak && (
           <p className="text-xs text-slate-400 mt-1">
-            Current streak: 🔥 {streak.current_streak} days
+            Current streak: {streak.current_streak} days
           </p>
         )}
       </div>
@@ -208,7 +208,7 @@ export default function DailyLogPage() {
           {/* Honesty Motivation */}
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-center mb-2">
             <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-              🧠 Be honest — only genuine effort rewires your brain. Fake check-ins = zero real progress.
+              Be honest — only genuine effort rewires your brain. Fake check-ins = zero real progress.
             </p>
           </div>
 
@@ -285,9 +285,9 @@ export default function DailyLogPage() {
                 className="w-full accent-brand-500"
               />
               <div className="flex justify-between text-xs text-slate-400 mt-1">
-                <span>Low ⚡</span>
+                <span>Low</span>
                 <span>Medium</span>
-                <span>High ⚡⚡⚡</span>
+                <span>High</span>
               </div>
             </div>
 
@@ -310,7 +310,7 @@ export default function DailyLogPage() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50 transition-all"
           >
-            {loading ? 'Saving...' : '✅ Log Completion'}
+            {loading ? 'Saving...' : 'Log Completion'}
           </button>
         </motion.div>
       )}
@@ -384,7 +384,7 @@ export default function DailyLogPage() {
             disabled={loading || !failureReason}
             className="w-full bg-slate-700 text-white py-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all"
           >
-            {loading ? 'Saving...' : '📝 Log Entry'}
+            {loading ? 'Saving...' : 'Log Entry'}
           </button>
         </motion.div>
       )}
@@ -396,14 +396,13 @@ export default function DailyLogPage() {
           animate={{ scale: 1, opacity: 1 }}
           className="text-center space-y-4"
         >
-          <div className="text-6xl mb-2">🎉</div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Log Saved!</h2>
           <p className="text-slate-500 dark:text-slate-400">Your data has been recorded for your experiment.</p>
 
           {/* Anti-fake motivation */}
           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 max-w-sm mx-auto">
             <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-              💪 Remember: Every honest log builds a real habit. Consistency with integrity is what creates lasting change — not just streaks on a screen.
+              Remember: Every honest log builds a real habit. Consistency with integrity is what creates lasting change — not just streaks on a screen.
             </p>
           </div>
 
@@ -484,7 +483,7 @@ export default function DailyLogPage() {
                 transition={{ delay: 1.5 }}
                 className="mt-3 text-xs text-slate-400 italic border-t border-slate-100 dark:border-slate-800 pt-2"
               >
-                🧠 {prediction.scienceFact}
+                {prediction.scienceFact}
               </motion.p>
             </motion.div>
           )}
