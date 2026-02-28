@@ -41,7 +41,7 @@ type Tab = 'videos' | 'books'
 interface VideoRec {
   query: string
   youtube_search_url: string
-  youtube_embed_url?: string
+  youtube_id?: string
 }
 
 interface BookRec {
@@ -280,8 +280,8 @@ export default function LearnPage() {
                       {/* Embedded YouTube Player */}
                       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
                         <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.query)}`}
+                          className="absolute inset-0 w-full h-full rounded-t-xl"
+                          src={`https://www.youtube.com/embed/${v.youtube_id || ''}`}
                           title={v.query}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen

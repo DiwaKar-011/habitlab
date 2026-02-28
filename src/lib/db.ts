@@ -771,3 +771,37 @@ export async function checkAndAwardBadges(userId: string) {
 
   return newlyAwarded
 }
+
+// ── Delete Account ──
+
+async function deleteCollectionDocs(collectionName: string, fieldName: string, userId: string) {
+  const q = query(collection(db, collectionName), where(fieldName, '==', userId))
+  const snap = await getDocs(q)
+  const deletePromises = snap.docs.map((d) => deleteDoc(doc(db, collectionName, d.id)))
+  await Promise.all(deletePromises)
+}
+
+export async function deleteUserAccount(userId: string) {
+  // Delete all user data from every collection
+  await Promise.all([
+    deleteCollectionDocs('habits', 'user_id', userId),
+    deleteCollectionDocs('daily_logs', 'user_id', userId),
+    deleteCollectionDocs('streaks', 'user_id', userId),
+    deleteCollectionDocs('user_badges', 'user_id', userId),
+    deleteCollectionDocs('friends', 'user_id', userId),
+    deleteCollectionDocs('friend_requests', 'from_user_id', userId),
+    deleteCollectionDocs('friend_requests', 'to_user_id', userId),
+    deleteCollectionDocs('video_watch_logs', 'user_id', userId),
+    deleteCollectionDocs('challenge_participants', 'user_id', userId),
+    deleteCollectionDocs('streak_milestones', 'user_id', userId),
+    deleteCollectionDocs('notifications', 'user_id', userId),
+  ])
+
+  // Also delete the reverse side of friendships
+  const friendsQ = query(collection(db, 'friends'), where('friend_id', '==', userId))
+  const friendsSnap = await getDocs(friendsQ)
+  await Promise.all(friendsSnap.docs.map((d) => deleteDoc(doc(db, 'friends', d.id))))
+
+  // Delete profile last
+  await deleteDoc(doc(db, 'profiles', userId))
+}

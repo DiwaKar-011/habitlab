@@ -39,7 +39,10 @@ import {
   getFriendRequests,
   acceptFriendRequest,
   rejectFriendRequest,
+  deleteUserAccount,
 } from '@/lib/db'
+import { deleteUser } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 import { calculateConsistency } from '@/lib/scoring'
 import { assignPersonality } from '@/lib/profileEngine'
 import type { User, Habit, DailyLog, Streak, Badge, UserBadge } from '@/types'
@@ -102,6 +105,9 @@ export default function ProfilePage() {
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [saving, setSaving] = useState(false)
   const [newBadges, setNewBadges] = useState<string[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [friends, setFriends] = useState<any[]>([])
   const [friendRequests, setFriendRequests] = useState<any[]>([])
   const nameRef = useRef<HTMLInputElement>(null)
@@ -630,6 +636,72 @@ export default function ProfilePage() {
           </div>
         </motion.div>
       )}
+
+      {/* Danger Zone - Delete Account */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="bg-white dark:bg-slate-900 rounded-xl border border-red-200 dark:border-red-900 p-5"
+      >
+        <h3 className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2 mb-2">
+          <Shield size={18} /> Danger Zone
+        </h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Permanently delete your account and all associated data. This action cannot be undone.
+        </p>
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+          >
+            Delete My Account
+          </button>
+        ) : (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 space-y-3">
+            <p className="text-sm font-medium text-red-700 dark:text-red-300">
+              Are you sure? Type <span className="font-bold">DELETE</span> to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder='Type "DELETE" here'
+              className="w-full px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:text-white"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (deleteInput !== 'DELETE' || !authUser) return
+                  setDeleting(true)
+                  try {
+                    await deleteUserAccount(authUser.id)
+                    // Delete Firebase Auth user
+                    if (auth.currentUser) {
+                      await deleteUser(auth.currentUser)
+                    }
+                    window.location.href = '/signin'
+                  } catch (err: any) {
+                    console.error('Delete account error:', err)
+                    alert('Failed to delete account. You may need to sign in again before deleting. Error: ' + (err?.message || ''))
+                  }
+                  setDeleting(false)
+                }}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Permanently Delete Account'}
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteInput('') }}
+                className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       {/* Friends List */}
       <motion.div

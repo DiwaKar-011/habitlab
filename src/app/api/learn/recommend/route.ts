@@ -1,89 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const YOUTUBE_SEARCH_TEMPLATES: Record<string, string[]> = {
+// Real YouTube video IDs mapped to each category
+const YOUTUBE_VIDEOS: Record<string, { id: string; title: string }[]> = {
   fitness: [
-    'best workout routine for beginners',
-    'how to build exercise habit',
-    'science of exercise benefits',
-    'morning workout routine',
-    'fitness motivation science',
-    'how exercise changes your brain',
-    'bodyweight workout at home',
-    'running tips for beginners',
-    'yoga for beginners daily',
-    'stretching routine for flexibility',
-    'HIIT workout for beginners',
-    'how to stay consistent with gym',
+    { id: 'U4lFPw7iOBc', title: 'Best Beginner Workout Routine' },
+    { id: 'IODxDxX7oi4', title: 'Science of How Exercise Improves Your Brain' },
+    { id: 'gC_L9qAHVJ8', title: '20-Min Full Body Workout - No Equipment' },
+    { id: 'UBMk30rjy0o', title: 'Morning Workout Routine to Start Your Day' },
+    { id: 'ml6cT4AZdqI', title: 'How Exercise Changes Your Brain' },
+    { id: '2pLT-olgUJs', title: 'How to Build a Workout Habit That Sticks' },
+    { id: 'BHY0FxzoKZE', title: 'Yoga for Beginners - 30 Day Challenge' },
+    { id: 'sTANio_2E0Q', title: '15 Min Standing Abs Workout' },
+    { id: 'TN9GDif2cOA', title: 'Running Tips for Beginners' },
+    { id: 'Y2oKC2KTeZk', title: 'Stretching Routine for Flexibility' },
+    { id: 'H1F-G1f2wPg', title: 'Why You Should Exercise Everyday' },
+    { id: 'tSb_HQQsvgg', title: 'How to Stay Consistent at the Gym' },
   ],
   study: [
-    'effective study techniques science',
-    'how to study effectively',
-    'best study methods for students',
-    'active recall study technique',
-    'spaced repetition how to',
-    'pomodoro technique study',
-    'how to read faster and remember more',
-    'note taking methods for students',
-    'memory techniques for students',
-    'how to focus while studying',
-    'deep learning study techniques',
-    'exam preparation strategies',
+    { id: 'ukLnPbIffxE', title: 'How to Study Effectively - Evidence-Based' },
+    { id: 'fDbxPVn02VU', title: 'Active Recall - Best Study Technique' },
+    { id: 'Z-zNHHpXoMM', title: 'Spaced Repetition - Remember More in Less Time' },
+    { id: 'mNbY8O1Y110', title: 'Pomodoro Technique - Study More Effectively' },
+    { id: 'nqYmmZKY4sA', title: 'How to Learn Faster with Feynman Technique' },
+    { id: 'IlU-zDU6aQ0', title: 'Best Note-Taking Methods for Students' },
+    { id: 'p60rN9JEapg', title: 'How to Focus While Studying' },
+    { id: 'V-UvSKe8jW4', title: '11 Secrets to Memorize Things Quicker' },
+    { id: 'TjPFZaMe2yw', title: 'How to Study When You Don\'t Want To' },
+    { id: 'bYjqMGeXFZ0', title: 'Exam Preparation Strategies That Work' },
+    { id: 'DXlhEB0cKcE', title: 'How to Read Faster and Remember More' },
+    { id: 'bDknBFQ-UY0', title: 'Deep Work - Cal Newport Summary' },
   ],
   focus: [
-    'how to improve concentration',
-    'deep work cal newport',
-    'focus techniques for productivity',
-    'how to stop procrastinating',
-    'flow state how to achieve',
-    'digital minimalism tips',
-    'attention span improvement',
-    'meditation for focus',
-    'productivity system for students',
-    'time management techniques',
-    'how to avoid distractions',
-    'dopamine detox how to',
+    { id: 'Hu4Yvq-g7_Y', title: 'How to Improve Concentration and Focus' },
+    { id: 'ZD7dXfdDPTg', title: 'Deep Work - Rules for Focused Success' },
+    { id: 'arj7oStGLkU', title: 'How to Stop Procrastinating' },
+    { id: 'iONDebHX9qk', title: 'Dopamine Detox - How to Reset Your Brain' },
+    { id: 'MYiR1-bJ5JQ', title: 'Flow State - How to Get in the Zone' },
+    { id: 'Jkl1vMuRSWs', title: 'Meditation for Focus - 10 Min Guided' },
+    { id: 'DGMCxRA-5Rs', title: 'Digital Minimalism Tips' },
+    { id: 'rbxs68gdsGE', title: 'How to Avoid Distractions' },
+    { id: 'cqGY-FkV8pQ', title: 'Time Management Tips That Actually Work' },
+    { id: 'UQztq-HS4FY', title: 'Productivity System for Students' },
+    { id: 'wfKv2qG8d_w', title: 'How to Build Discipline' },
+    { id: 'la6v0UPEJDM', title: 'Attention Span - How to Improve It' },
   ],
   eco: [
-    'sustainable living tips',
-    'how to reduce plastic waste',
-    'zero waste lifestyle beginners',
-    'eco friendly habits daily',
-    'climate change what can I do',
-    'sustainable diet tips',
-    'reduce carbon footprint personal',
-    'composting for beginners',
-    'renewable energy explained',
-    'ocean pollution solutions',
-    'fast fashion environmental impact',
-    'plant based diet benefits environment',
+    { id: 'wGHBSG-D_EI', title: 'Simple Sustainable Living Tips' },
+    { id: '6jQ7y_qQYUA', title: 'How to Reduce Plastic in Your Life' },
+    { id: 'OagTXWfaXEo', title: 'Zero Waste Lifestyle for Beginners' },
+    { id: 'yiw6_JakZFc', title: 'What You Can Do About Climate Change' },
+    { id: 'XALBGkjkUPQ', title: 'How to Reduce Your Carbon Footprint' },
+    { id: 'tJkLnUi_Gio', title: 'Composting for Beginners' },
+    { id: '1kUE0BZtTRc', title: 'Fast Fashion Impact on Environment' },
+    { id: 'NxvQPzrg2Wg', title: 'Plant-Based Diet Benefits for the Planet' },
+    { id: 'bfAzi6D5FpM', title: 'Renewable Energy Explained Simply' },
+    { id: '_6xlNyWPpB8', title: 'Ocean Pollution - What Can We Do' },
+    { id: 'oS-8MJ9DQNM', title: 'Sustainable Diet Choices' },
+    { id: 'xY0_1CbDUMk', title: 'Easy Eco-Friendly Daily Habits' },
   ],
   health: [
-    'healthy habits for better life',
-    'sleep science how to sleep better',
-    'nutrition basics for beginners',
-    'mental health daily habits',
-    'hydration benefits science',
-    'gut health improvement tips',
-    'stress management techniques',
-    'immune system boosting naturally',
-    'healthy morning routine',
-    'intermittent fasting science',
-    'cold shower benefits science',
-    'breathing exercises for health',
+    { id: 'pwaWilO_Pig', title: 'Healthy Habits for a Better Life' },
+    { id: 'gedoSfZvBgE', title: 'How to Sleep Better - Sleep Science' },
+    { id: 'GqQ5TRN3hEg', title: 'Nutrition Basics Everyone Should Know' },
+    { id: 'FEn2_ber4YE', title: 'Daily Habits for Better Mental Health' },
+    { id: 'LIoVsmmqnaE', title: 'Gut Health - How to Improve It' },
+    { id: 'sG7DBA-mgFY', title: 'Stress Management Techniques' },
+    { id: '8VwTZFY-oBs', title: 'Healthy Morning Routine Ideas' },
+    { id: 'A6g0mPo-uJM', title: 'Intermittent Fasting - What Science Says' },
+    { id: 'pq6WHJzOkno', title: 'Cold Shower Benefits - Science Explained' },
+    { id: 'odADwWzHR24', title: 'Breathing Exercises for Better Health' },
+    { id: 'GDBfA-aLBos', title: 'Hydration - Why Water is So Important' },
+    { id: 'tTb3d5cjSFI', title: 'Immune System - How to Boost It Naturally' },
   ],
   mindset: [
-    'growth mindset how to develop',
-    'meditation for beginners guided',
-    'positive thinking science',
-    'emotional intelligence improvement',
-    'stoicism for modern life',
-    'how to build mental toughness',
-    'gratitude practice benefits',
-    'journaling for mental health',
-    'self discipline techniques',
-    'overcoming fear and anxiety',
-    'building confidence science',
-    'neuroplasticity explained simply',
+    { id: '9DVdclX6NZY', title: 'Growth Mindset vs Fixed Mindset' },
+    { id: 'inpok4MKVLM', title: '5-Minute Meditation for Beginners' },
+    { id: 'EKR-HydGohQ', title: 'Stoicism - Practical Philosophy for Life' },
+    { id: '8GO6_5us2eE', title: 'How to Build Mental Toughness' },
+    { id: 'WPPPFqsECz0', title: 'The Power of Gratitude - Science' },
+    { id: 'Y5oU6PKezP0', title: 'Journaling for Mental Health' },
+    { id: 'PYaixyyzlDI', title: 'Self-Discipline - How to Build It' },
+    { id: 'TWICdJMCHrk', title: 'Overcoming Fear and Anxiety' },
+    { id: 'w6T02g5hnT4', title: 'Building Confidence with Science' },
+    { id: '5KLPxDtMqeI', title: 'Neuroplasticity - How Your Brain Changes' },
+    { id: 'OwJE3Cq9dMI', title: 'Emotional Intelligence - The Key Skill' },
+    { id: 'R2_Mn-qRKjA', title: 'Positive Thinking - Does it Work?' },
   ],
 }
 
@@ -147,19 +148,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ recommendations: shuffled.slice(0, 2) })
     }
 
-    // Videos — return YouTube search queries for the category
-    const queries = YOUTUBE_SEARCH_TEMPLATES[safeCategory] || YOUTUBE_SEARCH_TEMPLATES['mindset']
+    // Videos — return YouTube video IDs for embedding
+    const videoList = YOUTUBE_VIDEOS[safeCategory] || YOUTUBE_VIDEOS['mindset']
     const excludeSet = new Set(exclude_ids || [])
-    const available = queries.filter((_, i) => !excludeSet.has(i))
+    const available = videoList.filter((_, i) => !excludeSet.has(i))
 
     if (available.length === 0) {
       // Reset — give all back
-      const shuffled = [...queries].sort(() => Math.random() - 0.5)
+      const shuffled = [...videoList].sort(() => Math.random() - 0.5)
       return NextResponse.json({
-        recommendations: shuffled.slice(0, 4).map((q) => ({
-          query: q,
-          youtube_search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-          youtube_embed_url: `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}`,
+        recommendations: shuffled.slice(0, 4).map((v) => ({
+          query: v.title,
+          youtube_id: v.id,
+          youtube_search_url: `https://www.youtube.com/watch?v=${v.id}`,
         })),
         refreshed: true,
       })
@@ -167,10 +168,10 @@ export async function POST(request: NextRequest) {
 
     const shuffled = [...available].sort(() => Math.random() - 0.5)
     return NextResponse.json({
-      recommendations: shuffled.slice(0, 4).map((q) => ({
-        query: q,
-        youtube_search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-        youtube_embed_url: `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}`,
+      recommendations: shuffled.slice(0, 4).map((v) => ({
+        query: v.title,
+        youtube_id: v.id,
+        youtube_search_url: `https://www.youtube.com/watch?v=${v.id}`,
       })),
     })
   } catch (error: any) {
