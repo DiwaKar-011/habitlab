@@ -589,7 +589,28 @@ export async function getFriendStats(friendId: string) {
 }
 
 export async function searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
-  // Get all public profiles and filter client-side (Firestore has no full-text search)
+  const term = searchTerm.toLowerCase().trim()
+  const results: User[] = []
+  const seenIds = new Set<string>()
+
+  // 1) Exact username lookup (works regardless of is_public)
+  const exactMatch = await getUserByUsername(term)
+  if (exactMatch && exactMatch.id !== currentUserId) {
+    results.push(exactMatch)
+    seenIds.add(exactMatch.id)
+  }
+
+  // 2) Also try without leading '@' if user typed it
+  if (term.startsWith('@')) {
+    const withoutAt = term.slice(1)
+    const atMatch = await getUserByUsername(withoutAt)
+    if (atMatch && atMatch.id !== currentUserId && !seenIds.has(atMatch.id)) {
+      results.push(atMatch)
+      seenIds.add(atMatch.id)
+    }
+  }
+
+  // 3) Broader search across public profiles
   const q = query(
     collection(db, 'profiles'),
     where('is_public', '==', true),
@@ -598,15 +619,19 @@ export async function searchUsers(searchTerm: string, currentUserId: string): Pr
   )
   const snap = await getDocs(q)
   const allUsers = snap.docs.map((d) => docToObj<User>(d))
-  // Client-side filter for name, username, or email match
-  const term = searchTerm.toLowerCase()
-  return allUsers.filter(
-    (u) =>
-      u.id !== currentUserId &&
-      (u.name?.toLowerCase().includes(term) ||
-        u.username?.toLowerCase().includes(term) ||
-        u.email?.toLowerCase().includes(term))
-  )
+  for (const u of allUsers) {
+    if (u.id === currentUserId || seenIds.has(u.id)) continue
+    if (
+      u.name?.toLowerCase().includes(term) ||
+      u.username?.toLowerCase().includes(term) ||
+      u.email?.toLowerCase().includes(term)
+    ) {
+      results.push(u)
+      seenIds.add(u.id)
+    }
+  }
+
+  return results
 }
 
 // ── PROFILE PIC ─────────────────────────────────────────────

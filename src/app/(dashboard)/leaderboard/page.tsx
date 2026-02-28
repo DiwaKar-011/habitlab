@@ -35,6 +35,8 @@ export default function LeaderboardPage() {
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set())
   const [viewingStats, setViewingStats] = useState<any>(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [statsToast, setStatsToast] = useState<any>(null)
+  const [toastVisible, setToastVisible] = useState(false)
   const [myRank, setMyRank] = useState<number | null>(null)
   const [totalUsers, setTotalUsers] = useState<number>(0)
 
@@ -109,10 +111,25 @@ export default function LeaderboardPage() {
   const handleViewStats = async (userId: string) => {
     setStatsLoading(true)
     try {
-      const stats = await getFriendStats(userId)
-      setViewingStats(stats)
+      const [stats, rank] = await Promise.all([
+        getFriendStats(userId),
+        getUserRank(userId).catch(() => null),
+      ])
+      const toastData = { ...stats, rank }
+      setStatsToast(toastData)
+      setToastVisible(true)
+      // Auto-dismiss after 8 seconds
+      setTimeout(() => {
+        setToastVisible(false)
+        setTimeout(() => setStatsToast(null), 400)
+      }, 8000)
     } catch (err) { console.error(err) }
     setStatsLoading(false)
+  }
+
+  const dismissToast = () => {
+    setToastVisible(false)
+    setTimeout(() => setStatsToast(null), 400)
   }
 
   const currentList = tab === 'global' ? leaderboard : friendsLeaderboard
@@ -267,8 +284,12 @@ export default function LeaderboardPage() {
                 <button onClick={() => { setShowSearch(false); setSearchResults([]); setSearchTerm('') }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><X size={20} className="text-slate-400" /></button>
               </div>
               <div className="p-4">
+                <p className="text-xs text-slate-400 mb-2">Enter their exact username to find anyone, or search by name.</p>
                 <div className="flex gap-2">
-                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search by username, name, or email..." className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none" />
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
+                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="username or name..." className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none" />
+                  </div>
                   <button onClick={handleSearch} disabled={searchLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
                     {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                   </button>
@@ -304,67 +325,128 @@ export default function LeaderboardPage() {
         )}
       </AnimatePresence>
 
-      {/* Friend Stats Modal */}
+      {/* Friend Stats Toast */}
       <AnimatePresence>
-        {viewingStats && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full overflow-hidden">
-                    {viewingStats.profile?.avatar_url ? <img src={viewingStats.profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">{(viewingStats.profile?.name || 'U').charAt(0)}</div>}
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-slate-900 dark:text-white">{viewingStats.profile?.name}&apos;s Stats</h2>
-                    <p className="text-xs text-slate-400">View only</p>
-                  </div>
-                </div>
-                <button onClick={() => setViewingStats(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><X size={20} className="text-slate-400" /></button>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-purple-50 dark:bg-purple-950/30 rounded-xl p-3 text-center">
-                    <p className="text-xl font-bold text-purple-600">{viewingStats.profile?.xp_points || 0}</p>
-                    <p className="text-xs text-slate-500">XP</p>
-                  </div>
-                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3 text-center">
-                    <p className="text-xl font-bold text-blue-600">Lv.{Math.floor((viewingStats.profile?.xp_points || 0) / 100) + 1}</p>
-                    <p className="text-xs text-slate-500">Level</p>
-                  </div>
-                  <div className="bg-orange-50 dark:bg-orange-950/30 rounded-xl p-3 text-center">
-                    <p className="text-xl font-bold text-orange-600">{viewingStats.habits?.length || 0}</p>
-                    <p className="text-xs text-slate-500">Habits</p>
-                  </div>
-                </div>
-                {viewingStats.habits?.map((h: any) => {
-                  const hLogs = (viewingStats.logs || []).filter((l: any) => l.habit_id === h.id)
-                  const completed = hLogs.filter((l: any) => l.completed).length
-                  const pct = hLogs.length > 0 ? Math.round((completed / hLogs.length) * 100) : 0
-                  const streak = (viewingStats.streaks || []).find((s: any) => s.habit_id === h.id)
-                  return (
-                    <div key={h.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate w-28">{h.title}</span>
-                      <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} /></div>
-                      <span className="text-xs text-slate-500 w-10 text-right">{pct}%</span>
-                      <span className="text-xs text-slate-400 w-12 text-right">🔥{streak?.current_streak || 0}</span>
-                    </div>
-                  )
-                })}
-                {viewingStats.badges?.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Badges</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {viewingStats.badges.map((b: any) => (
-                        <div key={b.id} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-1.5 text-center">
-                          <span className="text-lg">{b.badge?.icon_url || '🏅'}</span>
-                          <p className="text-[10px] text-slate-500">{b.badge?.name}</p>
-                        </div>
-                      ))}
-                    </div>
+        {statsToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 60, x: 0 }}
+            animate={toastVisible ? { opacity: 1, y: 0, x: 0 } : { opacity: 0, y: 60, x: 0 }}
+            exit={{ opacity: 0, y: 60 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden"
+          >
+            {/* Header bar */}
+            <div className="bg-gradient-to-r from-brand-600 to-accent-600 px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 flex-shrink-0">
+                {statsToast.profile?.avatar_url ? (
+                  <img src={statsToast.profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+                    {(statsToast.profile?.name || 'U').charAt(0)}
                   </div>
                 )}
               </div>
-            </motion.div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{statsToast.profile?.name || 'Friend'}</p>
+                {statsToast.profile?.username && (
+                  <p className="text-white/70 text-xs">@{statsToast.profile.username}</p>
+                )}
+              </div>
+              <button onClick={dismissToast} className="text-white/60 hover:text-white transition p-1">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Stats grid */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-4 gap-2">
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-purple-600">{statsToast.profile?.xp_points || 0}</p>
+                  <p className="text-[10px] text-slate-500">XP</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-blue-600">Lv.{Math.floor((statsToast.profile?.xp_points || 0) / 100) + 1}</p>
+                  <p className="text-[10px] text-slate-500">Level</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-orange-600">{statsToast.habits?.length || 0}</p>
+                  <p className="text-[10px] text-slate-500">Habits</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-green-600">#{statsToast.rank || '—'}</p>
+                  <p className="text-[10px] text-slate-500">Rank</p>
+                </div>
+              </div>
+
+              {/* Streaks summary */}
+              {statsToast.streaks?.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-orange-500">🔥</span>
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">
+                    Best streak: {Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
+                  </span>
+                </div>
+              )}
+
+              {/* Badges */}
+              {statsToast.badges?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Badges ({statsToast.badges.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {statsToast.badges.slice(0, 8).map((b: any) => (
+                      <div
+                        key={b.id}
+                        className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1 text-center"
+                        title={b.badge?.name}
+                      >
+                        <span className="text-sm">{b.badge?.icon_url || '🏅'}</span>
+                        <p className="text-[8px] text-slate-500 truncate max-w-[50px]">{b.badge?.name}</p>
+                      </div>
+                    ))}
+                    {statsToast.badges.length > 8 && (
+                      <div className="flex items-center text-[10px] text-slate-400 px-1">
+                        +{statsToast.badges.length - 8} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Habits with progress */}
+              {statsToast.habits?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Habits</p>
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                    {statsToast.habits.map((h: any) => {
+                      const hLogs = (statsToast.logs || []).filter((l: any) => l.habit_id === h.id)
+                      const completed = hLogs.filter((l: any) => l.completed).length
+                      const pct = hLogs.length > 0 ? Math.round((completed / hLogs.length) * 100) : 0
+                      const streak = (statsToast.streaks || []).find((s: any) => s.habit_id === h.id)
+                      return (
+                        <div key={h.id} className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate w-20">{h.title}</span>
+                          <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-500 w-8 text-right">{pct}%</span>
+                          <span className="text-[10px] text-slate-400 w-8 text-right">🔥{streak?.current_streak || 0}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom timer bar */}
+            <motion.div
+              initial={{ scaleX: 1 }}
+              animate={{ scaleX: 0 }}
+              transition={{ duration: 8, ease: 'linear' }}
+              className="h-1 bg-gradient-to-r from-brand-500 to-accent-500 origin-left"
+            />
           </motion.div>
         )}
       </AnimatePresence>

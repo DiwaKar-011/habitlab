@@ -39,7 +39,9 @@ export default function UsernameGate({ children }: { children: React.ReactNode }
   const validateUsername = (un: string) => {
     if (un.length < 3) return 'Username must be at least 3 characters'
     if (un.length > 20) return 'Username must be at most 20 characters'
-    if (!/^[a-zA-Z0-9_]+$/.test(un)) return 'Only letters, numbers, and underscores allowed'
+    if (!/^[a-z0-9._]+$/.test(un)) return 'Only lowercase letters, numbers, . and _ allowed'
+    if (/^[._]/.test(un) || /[._]$/.test(un)) return 'Cannot start or end with . or _'
+    if (/[._]{2}/.test(un)) return 'Cannot have consecutive . or _ characters'
     return null
   }
 
@@ -122,7 +124,7 @@ export default function UsernameGate({ children }: { children: React.ReactNode }
                 type="text"
                 value={username}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '')
+                  const val = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '')
                   setUsername(val)
                   setError('')
                 }}
@@ -152,7 +154,7 @@ export default function UsernameGate({ children }: { children: React.ReactNode }
             )}
 
             <p className="text-xs text-slate-400 mb-4">
-              3-20 characters. Letters, numbers & underscores only. This cannot be easily changed later.
+              3-20 characters. Lowercase letters, numbers, . and _ only. This cannot be easily changed later.
             </p>
 
             <button

@@ -21,6 +21,7 @@ import {
   Crown,
   Medal,
   Clock,
+  Eye,
 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import {
@@ -40,6 +41,8 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   deleteUserAccount,
+  getFriendStats,
+  getUserRank,
 } from '@/lib/db'
 import { deleteUser } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
@@ -111,6 +114,9 @@ export default function ProfilePage() {
   const [friends, setFriends] = useState<any[]>([])
   const [friendRequests, setFriendRequests] = useState<any[]>([])
   const nameRef = useRef<HTMLInputElement>(null)
+  const [statsToast, setStatsToast] = useState<any>(null)
+  const [toastVisible, setToastVisible] = useState(false)
+  const [statsLoading, setStatsLoading] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -192,7 +198,9 @@ export default function ProfilePage() {
     const un = usernameInput.toLowerCase().trim()
     if (un.length < 3) { setUsernameError('Min 3 characters'); return }
     if (un.length > 20) { setUsernameError('Max 20 characters'); return }
-    if (!/^[a-zA-Z0-9_]+$/.test(un)) { setUsernameError('Only letters, numbers & underscores'); return }
+    if (!/^[a-z0-9._]+$/.test(un)) { setUsernameError('Only lowercase letters, numbers, . and _ allowed'); return }
+    if (/^[._]/.test(un) || /[._]$/.test(un)) { setUsernameError('Cannot start or end with . or _'); return }
+    if (/[._]{2}/.test(un)) { setUsernameError('Cannot have consecutive . or _'); return }
     setCheckingUsername(true)
     try {
       const taken = await isUsernameTaken(un, authUser.id)
@@ -231,6 +239,29 @@ export default function ProfilePage() {
       await removeFriend(authUser.id, friendId)
       setFriends((prev) => prev.filter((f: any) => f.friend_profile?.id !== friendId))
     } catch (err) { console.error(err) }
+  }
+
+  const handleViewFriendStats = async (friendId: string) => {
+    setStatsLoading(friendId)
+    try {
+      const [stats, rank] = await Promise.all([
+        getFriendStats(friendId),
+        getUserRank(friendId).catch(() => null),
+      ])
+      const toastData = { ...stats, rank }
+      setStatsToast(toastData)
+      setToastVisible(true)
+      setTimeout(() => {
+        setToastVisible(false)
+        setTimeout(() => setStatsToast(null), 400)
+      }, 8000)
+    } catch (err) { console.error(err) }
+    setStatsLoading(null)
+  }
+
+  const dismissStatsToast = () => {
+    setToastVisible(false)
+    setTimeout(() => setStatsToast(null), 400)
   }
 
   // Computed stats
@@ -737,6 +768,13 @@ export default function ProfilePage() {
                 </div>
                 <span className="text-xs text-slate-400">⚡ {f.friend_profile?.xp_points || 0} XP</span>
                 <button
+                  onClick={() => handleViewFriendStats(f.friend_profile?.id)}
+                  disabled={statsLoading === f.friend_profile?.id}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 rounded hover:bg-brand-50 dark:hover:bg-brand-900/20 transition flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Eye size={12} /> {statsLoading === f.friend_profile?.id ? '...' : 'Stats'}
+                </button>
+                <button
                   onClick={() => handleRemoveFriend(f.friend_profile?.id)}
                   className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                 >
@@ -811,6 +849,105 @@ export default function ProfilePage() {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Friend Stats Toast */}
+      <AnimatePresence>
+        {statsToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 60 }}
+            animate={toastVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+            exit={{ opacity: 0, y: 60 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-brand-600 to-accent-600 px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 flex-shrink-0">
+                {statsToast.profile?.avatar_url ? (
+                  <img src={statsToast.profile.avatar_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+                    {(statsToast.profile?.name || 'U').charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{statsToast.profile?.name || 'Friend'}</p>
+                {statsToast.profile?.username && <p className="text-white/70 text-xs">@{statsToast.profile.username}</p>}
+              </div>
+              <button onClick={dismissStatsToast} className="text-white/60 hover:text-white transition p-1">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-4 gap-2">
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-purple-600">{statsToast.profile?.xp_points || 0}</p>
+                  <p className="text-[10px] text-slate-500">XP</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-blue-600">Lv.{Math.floor((statsToast.profile?.xp_points || 0) / 100) + 1}</p>
+                  <p className="text-[10px] text-slate-500">Level</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-orange-600">{statsToast.habits?.length || 0}</p>
+                  <p className="text-[10px] text-slate-500">Habits</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-green-600">#{statsToast.rank || '—'}</p>
+                  <p className="text-[10px] text-slate-500">Rank</p>
+                </div>
+              </div>
+              {statsToast.streaks?.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-orange-500">🔥</span>
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">
+                    Best streak: {Math.max(...(statsToast.streaks || []).map((s: any) => s.current_streak || 0), 0)} days
+                  </span>
+                </div>
+              )}
+              {statsToast.badges?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Badges ({statsToast.badges.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {statsToast.badges.slice(0, 8).map((b: any) => (
+                      <div key={b.id} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1 text-center" title={b.badge?.name}>
+                        <span className="text-sm">{b.badge?.icon_url || '🏅'}</span>
+                        <p className="text-[8px] text-slate-500 truncate max-w-[50px]">{b.badge?.name}</p>
+                      </div>
+                    ))}
+                    {statsToast.badges.length > 8 && <div className="flex items-center text-[10px] text-slate-400 px-1">+{statsToast.badges.length - 8} more</div>}
+                  </div>
+                </div>
+              )}
+              {statsToast.habits?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Habits</p>
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                    {statsToast.habits.map((h: any) => {
+                      const hLogs = (statsToast.logs || []).filter((l: any) => l.habit_id === h.id)
+                      const completed = hLogs.filter((l: any) => l.completed).length
+                      const pct = hLogs.length > 0 ? Math.round((completed / hLogs.length) * 100) : 0
+                      const streak = (statsToast.streaks || []).find((s: any) => s.habit_id === h.id)
+                      return (
+                        <div key={h.id} className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate w-20">{h.title}</span>
+                          <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-500 w-8 text-right">{pct}%</span>
+                          <span className="text-[10px] text-slate-400 w-8 text-right">🔥{streak?.current_streak || 0}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <motion.div initial={{ scaleX: 1 }} animate={{ scaleX: 0 }} transition={{ duration: 8, ease: 'linear' }} className="h-1 bg-gradient-to-r from-brand-500 to-accent-500 origin-left" />
           </motion.div>
         )}
       </AnimatePresence>
