@@ -66,14 +66,28 @@ export async function isUsernameTaken(username: string, excludeUserId?: string):
 
 export async function getUserByUsername(username: string): Promise<User | null> {
   const normalised = username.toLowerCase().trim()
+  if (!normalised) return null
+
+  // Primary: exact match query
   const q = query(
     collection(db, 'profiles'),
     where('username', '==', normalised),
     firestoreLimit(1)
   )
   const snap = await getDocs(q)
-  if (snap.empty) return null
-  return docToObj<User>(snap.docs[0])
+  if (!snap.empty) return docToObj<User>(snap.docs[0])
+
+  // Fallback: scan all profiles for case-insensitive match
+  // (handles older accounts where username was stored with mixed case)
+  const allSnap = await getDocs(collection(db, 'profiles'))
+  for (const d of allSnap.docs) {
+    const data = d.data()
+    if (data.username && data.username.toLowerCase().trim() === normalised) {
+      return { id: d.id, ...data } as User
+    }
+  }
+
+  return null
 }
 
 export async function updateProfileXP(userId: string, xpToAdd: number) {
@@ -590,40 +604,27 @@ export async function getFriendStats(friendId: string) {
 
 export async function searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
   const term = searchTerm.toLowerCase().trim()
+  if (!term) return []
   const results: User[] = []
   const seenIds = new Set<string>()
 
   // 1) Exact username lookup (works regardless of is_public)
-  const exactMatch = await getUserByUsername(term)
+  const searchTermClean = term.startsWith('@') ? term.slice(1) : term
+  const exactMatch = await getUserByUsername(searchTermClean)
   if (exactMatch && exactMatch.id !== currentUserId) {
     results.push(exactMatch)
     seenIds.add(exactMatch.id)
   }
 
-  // 2) Also try without leading '@' if user typed it
-  if (term.startsWith('@')) {
-    const withoutAt = term.slice(1)
-    const atMatch = await getUserByUsername(withoutAt)
-    if (atMatch && atMatch.id !== currentUserId && !seenIds.has(atMatch.id)) {
-      results.push(atMatch)
-      seenIds.add(atMatch.id)
-    }
-  }
-
-  // 3) Broader search across public profiles
-  const q = query(
-    collection(db, 'profiles'),
-    where('is_public', '==', true),
-    orderBy('name'),
-    firestoreLimit(50)
-  )
-  const snap = await getDocs(q)
-  const allUsers = snap.docs.map((d) => docToObj<User>(d))
-  for (const u of allUsers) {
+  // 2) Full scan of all profiles — match by username, name, or email
+  //    (No is_public filter so users can always be found by exact username)
+  const allSnap = await getDocs(collection(db, 'profiles'))
+  for (const d of allSnap.docs) {
+    const u = { id: d.id, ...d.data() } as User
     if (u.id === currentUserId || seenIds.has(u.id)) continue
     if (
+      u.username?.toLowerCase().includes(searchTermClean) ||
       u.name?.toLowerCase().includes(term) ||
-      u.username?.toLowerCase().includes(term) ||
       u.email?.toLowerCase().includes(term)
     ) {
       results.push(u)
