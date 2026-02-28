@@ -30,6 +30,7 @@ import {
   clearNotifications,
   getPermissionStatus,
   requestNotificationPermission,
+  initNotifications,
   sendBrowserNotification,
 } from '@/lib/notificationStore'
 import { getFriends } from '@/lib/db'
@@ -69,7 +70,7 @@ export default function NotificationsPage() {
   }, [authLoading])
 
   const handleRequestPermission = async () => {
-    const result = await requestNotificationPermission()
+    const result = await initNotifications()
     setPermissionStatus(result)
     if (result === 'granted') {
       setShowPermissionBanner(false)

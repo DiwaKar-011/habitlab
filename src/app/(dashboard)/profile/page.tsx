@@ -50,7 +50,14 @@ import {
   getFriendStats,
   getUserRank,
 } from '@/lib/db'
-import { deleteUser } from 'firebase/auth'
+import {
+  deleteUser,
+  reauthenticateWithPopup,
+  GoogleAuthProvider,
+  GithubAuthProvider,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { calculateConsistency } from '@/lib/scoring'
 import { assignPersonality } from '@/lib/profileEngine'
@@ -916,15 +923,50 @@ export default function ProfilePage() {
                   if (deleteInput !== 'DELETE' || !authUser) return
                   setDeleting(true)
                   try {
-                    await deleteUserAccount(authUser.id)
-                    // Delete Firebase Auth user
-                    if (auth.currentUser) {
-                      await deleteUser(auth.currentUser)
+                    const currentUser = auth.currentUser
+                    if (!currentUser) throw new Error('Not signed in')
+
+                    // Re-authenticate before deletion (Firebase requires recent auth)
+                    const providerIds = currentUser.providerData.map(p => p.providerId)
+                    try {
+                      if (providerIds.includes('google.com')) {
+                        await reauthenticateWithPopup(currentUser, new GoogleAuthProvider())
+                      } else if (providerIds.includes('github.com')) {
+                        await reauthenticateWithPopup(currentUser, new GithubAuthProvider())
+                      } else if (providerIds.includes('password') && currentUser.email) {
+                        const pw = prompt('Please enter your password to confirm account deletion:')
+                        if (!pw) { setDeleting(false); return }
+                        const credential = EmailAuthProvider.credential(currentUser.email, pw)
+                        await reauthenticateWithCredential(currentUser, credential)
+                      }
+                    } catch (reauthErr: any) {
+                      console.error('Re-auth error:', reauthErr)
+                      if (reauthErr?.code === 'auth/popup-closed-by-user') {
+                        alert('Sign-in popup was closed. Please try again.')
+                        setDeleting(false)
+                        return
+                      }
+                      // If re-auth fails for other reasons, still try deletion
                     }
+
+                    // Delete all Firestore data
+                    await deleteUserAccount(authUser.id)
+
+                    // Delete Firebase Auth user
+                    await deleteUser(currentUser)
+
+                    // Clear cookies and redirect
+                    document.cookie = 'firebaseAuthToken=; path=/; max-age=0'
+                    document.cookie = 'habitlab_guest=; path=/; max-age=0'
+                    localStorage.clear()
                     window.location.href = '/signin'
                   } catch (err: any) {
                     console.error('Delete account error:', err)
-                    alert('Failed to delete account. You may need to sign in again before deleting. Error: ' + (err?.message || ''))
+                    if (err?.code === 'auth/requires-recent-login') {
+                      alert('Session expired. Please sign out, sign back in, and try deleting again immediately.')
+                    } else {
+                      alert('Failed to delete account: ' + (err?.message || 'Unknown error'))
+                    }
                   }
                   setDeleting(false)
                 }}

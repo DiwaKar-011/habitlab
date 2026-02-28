@@ -102,19 +102,84 @@ export function sendBrowserNotification(title: string, body: string, icon?: stri
   if (typeof window === 'undefined' || !('Notification' in window)) return
   if (Notification.permission !== 'granted') return
 
-  const notif = new Notification(title, {
-    body,
-    icon: icon || '/favicon.ico',
-    badge: '/favicon.ico',
-    tag: `habitlab-${Date.now()}`,
-    requireInteraction: false,
-  })
+  const tag = `habitlab-${Date.now()}`
 
-  // auto-close after 8s
-  setTimeout(() => notif.close(), 8000)
-
-  notif.onclick = () => {
-    window.focus()
-    notif.close()
+  // Prefer Service Worker showNotification (required on Android Chrome)
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SHOW_NOTIFICATION',
+      title,
+      body,
+      icon: icon || '/favicon.ico',
+      tag,
+    })
+    return
   }
+
+  // Also try via ready registration (SW may not have controller yet)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        registration.showNotification(title, {
+          body,
+          icon: icon || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag,
+          requireInteraction: false,
+        } as NotificationOptions)
+      })
+      .catch(() => {
+        // Fallback to Notification constructor (desktop only)
+        fallbackNotification(title, body, icon, tag)
+      })
+    return
+  }
+
+  // Final fallback for desktop browsers without SW
+  fallbackNotification(title, body, icon, tag)
+}
+
+function fallbackNotification(title: string, body: string, icon?: string, tag?: string) {
+  try {
+    const notif = new Notification(title, {
+      body,
+      icon: icon || '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: tag || `habitlab-${Date.now()}`,
+      requireInteraction: false,
+    })
+    setTimeout(() => notif.close(), 8000)
+    notif.onclick = () => {
+      window.focus()
+      notif.close()
+    }
+  } catch {
+    // Notification constructor not supported (e.g. Android Chrome)
+  }
+}
+
+// Register service worker for notification support
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    console.log('[HabitLab] Service Worker registered:', registration.scope)
+    return registration
+  } catch (err) {
+    console.warn('[HabitLab] Service Worker registration failed:', err)
+    return null
+  }
+}
+
+// Request permission and register SW in one call
+export async function initNotifications(): Promise<NotificationPermission | 'unsupported'> {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
+
+  // Register service worker first
+  await registerServiceWorker()
+
+  // Request permission
+  const result = await Notification.requestPermission()
+  localStorage.setItem(PERMISSION_KEY, result)
+  return result
 }

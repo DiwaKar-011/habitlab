@@ -10,6 +10,7 @@ import {
   markNotificationRead,
   markAllRead,
   clearNotifications,
+  initNotifications,
 } from '@/lib/notificationStore'
 import { startReminderScheduler } from '@/lib/reminderScheduler'
 import Link from 'next/link'
@@ -20,8 +21,15 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // Start scheduler & poll for new notifications
+  // Register service worker, request permission & start scheduler
   useEffect(() => {
+    // Register SW + request notification permission
+    initNotifications().then((perm) => {
+      if (perm === 'granted') {
+        console.log('[HabitLab] Notification permission granted')
+      }
+    })
+
     startReminderScheduler()
 
     const refresh = () => {
