@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Beaker, ArrowLeft, Plus, X, Sparkles } from 'lucide-react'
+import { Beaker, ArrowLeft, Plus, X, Sparkles, Bell, CalendarClock, Repeat } from 'lucide-react'
 import Link from 'next/link'
 import { createHabit } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
@@ -464,6 +464,48 @@ export default function CreateHabitPage() {
             {error}
           </div>
         )}
+
+        {/* Reminder Tip */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-gradient-to-br from-brand-50 via-indigo-50 to-purple-50 dark:from-brand-950/30 dark:via-indigo-950/20 dark:to-purple-950/20 rounded-xl border border-brand-200 dark:border-brand-800/40 p-4 sm:p-5"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/20">
+              <Bell size={18} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-1">
+                💡 Pro Tip: Set a Reminder After Creating!
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-3">
+                After you create this experiment, you can set up <strong>reminders</strong> to stay on track. 
+                Choose from two notification modes:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-start gap-2 bg-white/60 dark:bg-slate-800/60 rounded-lg p-2.5 border border-white dark:border-slate-700">
+                  <CalendarClock size={16} className="text-brand-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Scheduled</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Pick exact times like 9:00 AM, 2:00 PM</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 bg-white/60 dark:bg-slate-800/60 rounded-lg p-2.5 border border-white dark:border-slate-700">
+                  <Repeat size={16} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Recurring</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Every 30 min, 1 hr, 2 hr intervals</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2.5 flex items-center gap-1">
+                🔥 You can also choose <strong>Roast</strong>, <strong>Motivation</strong>, or <strong>Plain</strong> notification styles!
+              </p>
+            </div>
+          </div>
+        </motion.section>
 
         {/* Submit */}
         <button
