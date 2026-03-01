@@ -153,6 +153,7 @@ function ChallengesContent() {
   const [generatingAI, setGeneratingAI] = useState(false)
   const seededRef = useRef(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState(false)
 
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -299,7 +300,6 @@ function ChallengesContent() {
       setCreateError('Please enter a challenge title.')
       return
     }
-    setActionLoading('create')
     const startDate = new Date().toISOString().split('T')[0]
     const newCh: Challenge = {
       id: uid(),
@@ -315,13 +315,20 @@ function ChallengesContent() {
       end_date: addDays(new Date(), formDuration),
       created_at: new Date().toISOString(),
     }
-    setChallenges(prev => [newCh, ...prev])
+    setChallenges(prev => {
+      const updated = [newCh, ...prev]
+      writeLS(LS_CHALLENGES, updated)
+      return updated
+    })
     setShowCreate(false)
     setFormTitle('')
     setFormDesc('')
     setFormCategory('fitness')
     setFormDuration(7)
-    setTimeout(() => setActionLoading(null), 300)
+    setTab('all')
+    setCreateSuccess(true)
+    setTimeout(() => setCreateSuccess(false), 3000)
+    setActionLoading(null)
   }
 
   return (
@@ -411,98 +418,98 @@ function ChallengesContent() {
         ))}
       </div>
 
+      {/* Success Banner */}
+      {createSuccess && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 size={16} />
+          Challenge created successfully! 🎉
+        </div>
+      )}
+
       {/* Create Form Modal */}
-      <AnimatePresence>
-        {showCreate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCreate(false)}>
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg animate-fade-in"
+            onClick={e => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg"
-            >
-              <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">New Challenge</h2>
-                <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-                  <X size={20} className="text-slate-400" />
-                </button>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">New Challenge</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={e => setFormTitle(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                  placeholder="e.g. 7-Day Morning Run"
+                  autoFocus
+                />
               </div>
-              <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                <textarea
+                  value={formDesc}
+                  onChange={e => setFormDesc(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
+                  placeholder="What's this challenge about?"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                  <select
+                    value={formCategory}
+                    onChange={e => setFormCategory(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
-                    placeholder="e.g. 7-Day Morning Run"
-                  />
+                  >
+                    <option value="fitness">🏃 Fitness</option>
+                    <option value="study">📚 Study</option>
+                    <option value="focus">🎯 Focus</option>
+                    <option value="eco">🌱 Eco</option>
+                    <option value="health">❤️ Health</option>
+                    <option value="mindset">🧠 Mindset</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-                  <textarea
-                    value={formDesc}
-                    onChange={e => setFormDesc(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
-                    placeholder="What's this challenge about?"
-                  />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration (days)</label>
+                  <select
+                    value={formDuration}
+                    onChange={e => setFormDuration(Number(e.target.value))}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                  >
+                    <option value={3}>3 days</option>
+                    <option value={5}>5 days</option>
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={21}>21 days</option>
+                    <option value={30}>30 days</option>
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                    <select
-                      value={formCategory}
-                      onChange={e => setFormCategory(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
-                    >
-                      <option value="fitness">🏃 Fitness</option>
-                      <option value="study">📚 Study</option>
-                      <option value="focus">🎯 Focus</option>
-                      <option value="eco">🌱 Eco</option>
-                      <option value="health">❤️ Health</option>
-                      <option value="mindset">🧠 Mindset</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration (days)</label>
-                    <select
-                      value={formDuration}
-                      onChange={e => setFormDuration(Number(e.target.value))}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
-                    >
-                      <option value={3}>3 days</option>
-                      <option value={5}>5 days</option>
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
-                      <option value={21}>21 days</option>
-                      <option value={30}>30 days</option>
-                    </select>
-                  </div>
-                </div>
-                {createError && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded-lg text-xs">
-                    {createError}
-                  </div>
-                )}
-                <button
-                  onClick={handleCreate}
-                  disabled={actionLoading === 'create' || !formTitle.trim()}
-                  className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-                >
-                  {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                  Create Challenge
-                </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {createError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded-lg text-xs">
+                  {createError}
+                </div>
+              )}
+              <button
+                onClick={handleCreate}
+                disabled={!formTitle.trim()}
+                className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                Create Challenge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
