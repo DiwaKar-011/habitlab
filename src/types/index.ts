@@ -183,16 +183,19 @@ export interface StreakMilestone {
 
 // Notification & Reminder types
 export type ReminderFrequency = 'once' | 'every_30min' | 'every_1hr' | 'every_2hr' | 'every_4hr' | 'custom'
+export type ReminderMode = 'recurring' | 'scheduled'
 
 export interface HabitReminder {
   id: string
   habit_id: string
   habit_title: string
   enabled: boolean
-  frequency: ReminderFrequency
+  mode: ReminderMode             // 'recurring' = interval-based, 'scheduled' = exact times
+  frequency: ReminderFrequency   // used when mode = 'recurring'
   custom_interval_min?: number   // for 'custom' frequency
   start_time: string             // HH:MM format — when reminders begin each day
   end_time: string               // HH:MM format — when they stop
+  scheduled_times?: string[]     // HH:MM[] — exact times (used when mode = 'scheduled')
   days_of_week: number[]         // 0=Sun, 1=Mon, ... 6=Sat
   created_at: string
 }

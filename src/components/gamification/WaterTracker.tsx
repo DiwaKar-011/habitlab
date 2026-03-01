@@ -139,7 +139,7 @@ export default function WaterTracker() {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
+      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
     >
       {/* Header */}
       <div className="p-4 pb-0 flex items-center justify-between">
@@ -286,13 +286,12 @@ export default function WaterTracker() {
       <AnimatePresence>
         {showSettings && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
-            <div className="border-t border-slate-200 dark:border-slate-800 p-4 space-y-4 bg-slate-50 dark:bg-slate-800/50">
+            <div className="border-t border-slate-200 dark:border-slate-800 p-4 space-y-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl">
               <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Settings size={14} /> Water Settings
               </h4>
@@ -302,12 +301,12 @@ export default function WaterTracker() {
                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
                   Daily Goal (ml)
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {[1500, 2000, 2500, 3000, 3500, 4000].map(ml => (
                     <button
                       key={ml}
                       onClick={() => setDraftGoal(ml)}
-                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${
+                      className={`text-xs px-2 py-1.5 rounded-lg font-medium transition-colors ${
                         draftGoal === ml
                           ? 'bg-cyan-600 text-white'
                           : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-cyan-300'
@@ -324,12 +323,12 @@ export default function WaterTracker() {
                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
                   Glass Size (ml)
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {[150, 200, 250, 300, 500].map(ml => (
                     <button
                       key={ml}
                       onClick={() => setDraftGlass(ml)}
-                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${
+                      className={`text-xs px-2 py-1.5 rounded-lg font-medium transition-colors ${
                         draftGlass === ml
                           ? 'bg-cyan-600 text-white'
                           : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-cyan-300'

@@ -67,11 +67,47 @@ function isTodayEnabled(reminder: HabitReminder, now: Date): boolean {
 function shouldFire(reminder: HabitReminder, now: Date, lastFired: Record<string, number>): boolean {
   if (!reminder.enabled) return false
   if (!isTodayEnabled(reminder, now)) return false
-  if (!isWithinTimeWindow(reminder, now)) return false
 
+  const mode = reminder.mode || 'recurring'
+
+  if (mode === 'scheduled') {
+    // Scheduled mode — fire at each exact scheduled time
+    const times = reminder.scheduled_times || []
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+
+    for (const t of times) {
+      const { h, m } = parseTime(t)
+      const schedMin = h * 60 + m
+      // Fire if we're within the same minute as the scheduled time
+      if (Math.abs(nowMin - schedMin) <= 0) {
+        // Build a unique key per time slot so each fires independently
+        const slotKey = `${reminder.id}__${t}`
+        const last = lastFired[slotKey] || 0
+        // Only fire once per day per slot (at least 12h gap)
+        if (now.getTime() - last >= 12 * 60 * 60 * 1000) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  // Recurring mode — interval-based
+  if (!isWithinTimeWindow(reminder, now)) return false
   const last = lastFired[reminder.id] || 0
   const interval = getIntervalMs(reminder)
   return (now.getTime() - last) >= interval
+}
+
+function getScheduledSlotKey(reminder: HabitReminder, now: Date): string {
+  // For scheduled mode, find the matching time slot
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const times = reminder.scheduled_times || []
+  for (const t of times) {
+    const { h, m } = parseTime(t)
+    if (h * 60 + m === nowMin) return `${reminder.id}__${t}`
+  }
+  return reminder.id
 }
 
 const motivationalMessages = [
@@ -114,6 +150,7 @@ function checkWaterReminder(now: Date, lastFired: Record<string, number>) {
     habit_id: 'water',
     habit_title: 'Drink Water',
     enabled: true,
+    mode: 'recurring',
     frequency: settings.reminder_frequency,
     custom_interval_min: settings.custom_interval_min,
     start_time: settings.start_time,
@@ -156,7 +193,11 @@ export function checkAndFireReminders() {
       // Fire browser notification
       sendBrowserNotification(notifTitle, notifMessage)
 
-      setLastFired(reminder.id, now.getTime())
+      // Use slot key for scheduled mode, regular id for recurring
+      const fireKey = (reminder.mode === 'scheduled')
+        ? getScheduledSlotKey(reminder, now)
+        : reminder.id
+      setLastFired(fireKey, now.getTime())
     }
   }
 

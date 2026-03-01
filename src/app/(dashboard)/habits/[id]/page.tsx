@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FlaskConical, Target, BarChart3, Bell, BellOff, Clock, Trash2 } from 'lucide-react'
+import { ArrowLeft, FlaskConical, Target, BarChart3, Bell, BellOff, Clock, Trash2, Plus, X, CalendarClock, Repeat } from 'lucide-react'
 import { getHabit, getLogsForHabit, getStreak } from '@/lib/db'
 import { calculateHabitStrength, calculateConsistency } from '@/lib/scoring'
 import { analyzeFailures } from '@/lib/failureAnalysis'
@@ -14,7 +14,7 @@ import HeatmapCalendar from '@/components/analytics/HeatmapCalendar'
 import FailureChart from '@/components/analytics/FailureChart'
 import StreakFire from '@/components/gamification/StreakFire'
 import NeuralPathwayBar from '@/components/gamification/NeuralPathwayBar'
-import type { Habit, DailyLog, Streak as StreakType, HabitReminder, ReminderFrequency } from '@/types'
+import type { Habit, DailyLog, Streak as StreakType, HabitReminder, ReminderFrequency, ReminderMode } from '@/types'
 
 export default function HabitDetailPage() {
   const params = useParams()
@@ -27,11 +27,14 @@ export default function HabitDetailPage() {
   // Reminder state
   const [showReminderForm, setShowReminderForm] = useState(false)
   const [reminder, setReminder] = useState<HabitReminder | null>(null)
+  const [reminderMode, setReminderMode] = useState<ReminderMode>('scheduled')
   const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>('every_1hr')
   const [reminderStartTime, setReminderStartTime] = useState('08:00')
   const [reminderEndTime, setReminderEndTime] = useState('21:00')
   const [reminderDays, setReminderDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
   const [customIntervalMin, setCustomIntervalMin] = useState(60)
+  const [scheduledTimes, setScheduledTimes] = useState<string[]>(['09:00'])
+  const [newTime, setNewTime] = useState('12:00')
 
   useEffect(() => {
     const load = async () => {
@@ -48,11 +51,13 @@ export default function HabitDetailPage() {
       const existingReminder = getReminderForHabit(habitId)
       if (existingReminder) {
         setReminder(existingReminder)
+        setReminderMode(existingReminder.mode || 'recurring')
         setReminderFrequency(existingReminder.frequency)
         setReminderStartTime(existingReminder.start_time)
         setReminderEndTime(existingReminder.end_time)
         setReminderDays(existingReminder.days_of_week)
         if (existingReminder.custom_interval_min) setCustomIntervalMin(existingReminder.custom_interval_min)
+        if (existingReminder.scheduled_times?.length) setScheduledTimes(existingReminder.scheduled_times)
       }
 
       setLoading(false)
@@ -67,10 +72,12 @@ export default function HabitDetailPage() {
       habit_id: habitId,
       habit_title: habit.title,
       enabled: true,
+      mode: reminderMode,
       frequency: reminderFrequency,
       custom_interval_min: reminderFrequency === 'custom' ? customIntervalMin : undefined,
       start_time: reminderStartTime,
       end_time: reminderEndTime,
+      scheduled_times: reminderMode === 'scheduled' ? scheduledTimes.sort() : undefined,
       days_of_week: reminderDays,
       created_at: reminder?.created_at || new Date().toISOString(),
     }
@@ -91,6 +98,16 @@ export default function HabitDetailPage() {
     setReminderDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
     )
+  }
+
+  const addScheduledTime = () => {
+    if (newTime && !scheduledTimes.includes(newTime)) {
+      setScheduledTimes(prev => [...prev, newTime].sort())
+    }
+  }
+
+  const removeScheduledTime = (t: string) => {
+    setScheduledTimes(prev => prev.filter(x => x !== t))
   }
 
   if (loading) {
@@ -290,19 +307,39 @@ export default function HabitDetailPage() {
 
         {/* Show current reminder summary */}
         {reminder && !showReminderForm && (
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 space-y-1.5">
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <Clock size={14} className="text-slate-400" />
-              <span>
-                {reminder.frequency === 'once' ? 'Once daily' :
-                 reminder.frequency === 'every_30min' ? 'Every 30 min' :
-                 reminder.frequency === 'every_1hr' ? 'Every hour' :
-                 reminder.frequency === 'every_2hr' ? 'Every 2 hours' :
-                 reminder.frequency === 'every_4hr' ? 'Every 4 hours' :
-                 `Every ${reminder.custom_interval_min} min`}
-                {' '} from {reminder.start_time} to {reminder.end_time}
+              {(reminder.mode || 'recurring') === 'scheduled' ? (
+                <CalendarClock size={14} className="text-brand-500" />
+              ) : (
+                <Repeat size={14} className="text-brand-500" />
+              )}
+              <span className="font-medium">
+                {(reminder.mode || 'recurring') === 'scheduled' ? 'Scheduled' : 'Recurring'}
               </span>
             </div>
+            {(reminder.mode || 'recurring') === 'scheduled' && reminder.scheduled_times?.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {reminder.scheduled_times.map(t => (
+                  <span key={t} className="text-xs bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2.5 py-1 rounded-full font-medium">
+                    🕐 {t}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <Clock size={14} className="text-slate-400" />
+                <span>
+                  {reminder.frequency === 'once' ? 'Once daily' :
+                   reminder.frequency === 'every_30min' ? 'Every 30 min' :
+                   reminder.frequency === 'every_1hr' ? 'Every hour' :
+                   reminder.frequency === 'every_2hr' ? 'Every 2 hours' :
+                   reminder.frequency === 'every_4hr' ? 'Every 4 hours' :
+                   `Every ${reminder.custom_interval_min} min`}
+                  {' · '}{reminder.start_time} – {reminder.end_time}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
                 <span
@@ -322,66 +359,177 @@ export default function HabitDetailPage() {
 
         {/* Reminder Form */}
         {showReminderForm && (
-          <div className="space-y-4">
-            {/* Frequency */}
+          <div className="space-y-5">
+            {/* Mode Selection */}
             <div>
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Frequency</label>
-              <select
-                value={reminderFrequency}
-                onChange={(e) => setReminderFrequency(e.target.value as ReminderFrequency)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                <option value="once">Once daily</option>
-                <option value="every_30min">Every 30 minutes</option>
-                <option value="every_1hr">Every hour</option>
-                <option value="every_2hr">Every 2 hours</option>
-                <option value="every_4hr">Every 4 hours</option>
-                <option value="custom">Custom interval</option>
-              </select>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Notification Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReminderMode('scheduled')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    reminderMode === 'scheduled'
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CalendarClock size={16} className={reminderMode === 'scheduled' ? 'text-brand-600' : 'text-slate-400'} />
+                    <span className={`text-sm font-semibold ${reminderMode === 'scheduled' ? 'text-brand-700 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      Scheduled
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Pick exact times you want to be notified (e.g. 9:00 AM, 2:00 PM)
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReminderMode('recurring')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    reminderMode === 'recurring'
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Repeat size={16} className={reminderMode === 'recurring' ? 'text-brand-600' : 'text-slate-400'} />
+                    <span className={`text-sm font-semibold ${reminderMode === 'recurring' ? 'text-brand-700 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      Recurring
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Get notified at regular intervals (every 30min, 1hr, 2hr, etc.)
+                  </p>
+                </button>
+              </div>
             </div>
 
-            {/* Custom interval */}
-            {reminderFrequency === 'custom' && (
+            {/* Scheduled Mode — exact times */}
+            {reminderMode === 'scheduled' && (
               <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">
-                  Custom interval (minutes)
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">
+                  Notification Times
                 </label>
-                <input
-                  type="number"
-                  min={5}
-                  max={480}
-                  value={customIntervalMin}
-                  onChange={(e) => setCustomIntervalMin(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
+                <div className="space-y-2">
+                  {/* Existing times */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {scheduledTimes.map(t => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-medium px-2.5 py-1 rounded-full"
+                      >
+                        🕐 {t}
+                        <button
+                          type="button"
+                          onClick={() => removeScheduledTime(t)}
+                          className="text-brand-400 hover:text-red-500 transition-colors ml-0.5"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {/* Add new time */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addScheduledTime}
+                      className="bg-brand-600 text-white text-sm px-3 py-2 rounded-lg hover:bg-brand-700 transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+                  {scheduledTimes.length === 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400">Add at least one time to receive notifications.</p>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Time window */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Start time</label>
-                <input
-                  type="time"
-                  value={reminderStartTime}
-                  onChange={(e) => setReminderStartTime(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">End time</label>
-                <input
-                  type="time"
-                  value={reminderEndTime}
-                  onChange={(e) => setReminderEndTime(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
-            </div>
+            {/* Recurring Mode — interval-based */}
+            {reminderMode === 'recurring' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">How often?</label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                    {[
+                      { value: 'once' as ReminderFrequency, label: 'Once/day' },
+                      { value: 'every_30min' as ReminderFrequency, label: '30 min' },
+                      { value: 'every_1hr' as ReminderFrequency, label: '1 hour' },
+                      { value: 'every_2hr' as ReminderFrequency, label: '2 hours' },
+                      { value: 'every_4hr' as ReminderFrequency, label: '4 hours' },
+                      { value: 'custom' as ReminderFrequency, label: 'Custom' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setReminderFrequency(opt.value)}
+                        className={`text-xs py-2 px-1 rounded-lg font-medium text-center transition-colors ${
+                          reminderFrequency === opt.value
+                            ? 'bg-brand-600 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Days of week */}
+                {/* Custom interval */}
+                {reminderFrequency === 'custom' && (
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">
+                      Interval (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={480}
+                      value={customIntervalMin}
+                      onChange={(e) => setCustomIntervalMin(Number(e.target.value))}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                )}
+
+                {/* Time window */}
+                <div>
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Active window</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[10px] text-slate-400 mb-0.5 block">From</span>
+                      <input
+                        type="time"
+                        value={reminderStartTime}
+                        onChange={(e) => setReminderStartTime(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 mb-0.5 block">Until</span>
+                      <input
+                        type="time"
+                        value={reminderEndTime}
+                        onChange={(e) => setReminderEndTime(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Days of week — shared by both modes */}
             <div>
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Days</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Active Days</label>
               <div className="flex items-center gap-1.5">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
                   <button
@@ -404,7 +552,7 @@ export default function HabitDetailPage() {
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={handleSaveReminder}
-                disabled={reminderDays.length === 0}
+                disabled={reminderDays.length === 0 || (reminderMode === 'scheduled' && scheduledTimes.length === 0)}
                 className="bg-brand-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-brand-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 <Bell size={14} /> {reminder ? 'Update Reminder' : 'Save Reminder'}
@@ -422,7 +570,7 @@ export default function HabitDetailPage() {
         {/* No reminder set message */}
         {!reminder && !showReminderForm && (
           <p className="text-sm text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-            <BellOff size={14} /> No reminder set. Tap &quot;Set Reminder&quot; to get notified about this habit.
+            <BellOff size={14} /> No reminder set. Tap &quot;Set Reminder&quot; to choose when and how often you get notified.
           </p>
         )}
       </div>
