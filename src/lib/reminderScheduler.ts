@@ -6,6 +6,7 @@ import {
   getReminders,
   addNotification,
   sendBrowserNotification,
+  resolveStylePrefs,
 } from './notificationStore'
 import { getRandomQuote, getRandomRoast } from './motivationQuotes'
 import { getWaterSettings, getRandomWaterMessage } from './waterStore'
@@ -125,16 +126,25 @@ function getRandomMessage(): string {
   return motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)]
 }
 
-function getRoastOrMotivation(): { type: 'roast' | 'motivation' | 'reminder'; title: string; message: string } {
-  const roll = Math.random()
-  if (roll < 0.25) {
-    // 25% chance of roast
+function getRoastOrMotivation(reminder?: HabitReminder): { type: 'roast' | 'motivation' | 'reminder'; title: string; message: string } {
+  const prefs = resolveStylePrefs(reminder)
+  
+  // Build pool of allowed styles
+  const pool: Array<'roast' | 'motivation' | 'plain'> = []
+  if (prefs.roast) pool.push('roast')
+  if (prefs.motivation) pool.push('motivation')
+  if (prefs.plain) pool.push('plain')
+  
+  // If nothing is enabled, default to plain
+  if (pool.length === 0) pool.push('plain')
+  
+  const pick = pool[Math.floor(Math.random() * pool.length)]
+  
+  if (pick === 'roast') {
     return { type: 'roast', title: 'Habit Roast 🔥', message: getRandomRoast() }
-  } else if (roll < 0.5) {
-    // 25% chance of motivation quote
+  } else if (pick === 'motivation') {
     return { type: 'motivation', title: '✨ Quick Motivation', message: getRandomQuote() }
   }
-  // 50% normal reminder
   return { type: 'reminder', title: '', message: getRandomMessage() }
 }
 
@@ -178,7 +188,7 @@ export function checkAndFireReminders() {
 
   for (const reminder of reminders) {
     if (shouldFire(reminder, now, lastFired)) {
-      const variation = getRoastOrMotivation()
+      const variation = getRoastOrMotivation(reminder)
       const notifTitle = variation.type === 'reminder' ? `⏰ ${reminder.habit_title}` : variation.title
       const notifMessage = variation.message
 

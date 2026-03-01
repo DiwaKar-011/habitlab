@@ -1,9 +1,10 @@
 // Notification store — persisted in localStorage
-import { AppNotification, HabitReminder } from '@/types'
+import { AppNotification, HabitReminder, NotificationStylePrefs } from '@/types'
 
 const NOTIF_KEY = 'habitlab_notifications'
 const REMINDER_KEY = 'habitlab_reminders'
 const PERMISSION_KEY = 'habitlab_notif_permission'
+const GLOBAL_STYLE_KEY = 'habitlab_notification_style'
 
 // ─── Notifications ────────────────────────────────────
 
@@ -182,4 +183,38 @@ export async function initNotifications(): Promise<NotificationPermission | 'uns
   const result = await Notification.requestPermission()
   localStorage.setItem(PERMISSION_KEY, result)
   return result
+}
+
+// ─── Global Notification Style Preferences ────────────────
+
+const defaultStylePrefs: NotificationStylePrefs = {
+  plain: true,
+  motivation: true,
+  roast: false,
+}
+
+export function getGlobalNotificationStyle(): NotificationStylePrefs {
+  if (typeof window === 'undefined') return defaultStylePrefs
+  try {
+    const raw = localStorage.getItem(GLOBAL_STYLE_KEY)
+    if (!raw) return defaultStylePrefs
+    return { ...defaultStylePrefs, ...JSON.parse(raw) }
+  } catch {
+    return defaultStylePrefs
+  }
+}
+
+export function saveGlobalNotificationStyle(prefs: NotificationStylePrefs) {
+  localStorage.setItem(GLOBAL_STYLE_KEY, JSON.stringify(prefs))
+}
+
+/**
+ * Resolve final style prefs — per-habit prefs override global if set.
+ */
+export function resolveStylePrefs(reminder?: HabitReminder): NotificationStylePrefs {
+  const global = getGlobalNotificationStyle()
+  if (reminder?.notification_style) {
+    return reminder.notification_style
+  }
+  return global
 }

@@ -184,6 +184,13 @@ export interface StreakMilestone {
 // Notification & Reminder types
 export type ReminderFrequency = 'once' | 'every_30min' | 'every_1hr' | 'every_2hr' | 'every_4hr' | 'custom'
 export type ReminderMode = 'recurring' | 'scheduled'
+export type NotificationStyle = 'plain' | 'motivation' | 'roast'
+
+export interface NotificationStylePrefs {
+  plain: boolean       // simple reminders like "Time to do X"
+  motivation: boolean  // motivational quotes
+  roast: boolean       // funny roasts to push you
+}
 
 export interface HabitReminder {
   id: string
@@ -197,6 +204,7 @@ export interface HabitReminder {
   end_time: string               // HH:MM format — when they stop
   scheduled_times?: string[]     // HH:MM[] — exact times (used when mode = 'scheduled')
   days_of_week: number[]         // 0=Sun, 1=Mon, ... 6=Sat
+  notification_style?: NotificationStylePrefs  // user-chosen notification styles
   created_at: string
 }
 

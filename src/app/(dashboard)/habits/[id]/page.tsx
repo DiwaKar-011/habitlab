@@ -3,26 +3,32 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FlaskConical, Target, BarChart3, Bell, BellOff, Clock, Trash2, Plus, X, CalendarClock, Repeat } from 'lucide-react'
-import { getHabit, getLogsForHabit, getStreak } from '@/lib/db'
+import { ArrowLeft, FlaskConical, Target, BarChart3, Bell, BellOff, Clock, Trash2, Plus, X, CalendarClock, Repeat, MessageCircle, Flame, Zap, CheckCircle2, Circle } from 'lucide-react'
+import { getHabit, getLogsForHabit, getStreak, getHabits, getAllLogs } from '@/lib/db'
 import { calculateHabitStrength, calculateConsistency } from '@/lib/scoring'
 import { analyzeFailures } from '@/lib/failureAnalysis'
 import { generateInsights } from '@/lib/insights'
 import { categoryColors, categoryIcons } from '@/lib/utils'
-import { getReminderForHabit, saveReminder, deleteReminder } from '@/lib/notificationStore'
+import { getReminderForHabit, saveReminder, deleteReminder, getGlobalNotificationStyle, saveGlobalNotificationStyle } from '@/lib/notificationStore'
 import HeatmapCalendar from '@/components/analytics/HeatmapCalendar'
 import FailureChart from '@/components/analytics/FailureChart'
 import StreakFire from '@/components/gamification/StreakFire'
 import NeuralPathwayBar from '@/components/gamification/NeuralPathwayBar'
-import type { Habit, DailyLog, Streak as StreakType, HabitReminder, ReminderFrequency, ReminderMode } from '@/types'
+import { useAuth } from '@/components/AuthProvider'
+import type { Habit, DailyLog, Streak as StreakType, HabitReminder, ReminderFrequency, ReminderMode, NotificationStylePrefs } from '@/types'
 
 export default function HabitDetailPage() {
   const params = useParams()
   const habitId = params.id as string
+  const { user: authUser } = useAuth()
   const [habit, setHabit] = useState<Habit | null>(null)
   const [logs, setLogs] = useState<DailyLog[]>([])
   const [streak, setStreakData] = useState<StreakType | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // All user habits & logs for "remaining tasks" display
+  const [allHabits, setAllHabits] = useState<Habit[]>([])
+  const [allLogs, setAllLogs] = useState<DailyLog[]>([])
 
   // Reminder state
   const [showReminderForm, setShowReminderForm] = useState(false)
@@ -36,6 +42,9 @@ export default function HabitDetailPage() {
   const [scheduledTimes, setScheduledTimes] = useState<string[]>(['09:00'])
   const [newTime, setNewTime] = useState('12:00')
 
+  // Notification style prefs
+  const [notifStyle, setNotifStyle] = useState<NotificationStylePrefs>({ plain: true, motivation: true, roast: false })
+
   useEffect(() => {
     const load = async () => {
       const [h, l, s] = await Promise.all([
@@ -46,6 +55,16 @@ export default function HabitDetailPage() {
       setHabit(h)
       setLogs(l)
       setStreakData(s)
+
+      // Load all habits & logs for remaining tasks
+      if (authUser) {
+        const [ah, al] = await Promise.all([
+          getHabits(authUser.id),
+          getAllLogs(authUser.id),
+        ])
+        setAllHabits(ah)
+        setAllLogs(al)
+      }
 
       // Load existing reminder for this habit
       const existingReminder = getReminderForHabit(habitId)
@@ -58,12 +77,16 @@ export default function HabitDetailPage() {
         setReminderDays(existingReminder.days_of_week)
         if (existingReminder.custom_interval_min) setCustomIntervalMin(existingReminder.custom_interval_min)
         if (existingReminder.scheduled_times?.length) setScheduledTimes(existingReminder.scheduled_times)
+        if (existingReminder.notification_style) setNotifStyle(existingReminder.notification_style)
+      } else {
+        // Fall back to global style prefs
+        setNotifStyle(getGlobalNotificationStyle())
       }
 
       setLoading(false)
     }
     load()
-  }, [habitId])
+  }, [habitId, authUser])
 
   const handleSaveReminder = () => {
     if (!habit) return
@@ -79,10 +102,13 @@ export default function HabitDetailPage() {
       end_time: reminderEndTime,
       scheduled_times: reminderMode === 'scheduled' ? scheduledTimes.sort() : undefined,
       days_of_week: reminderDays,
+      notification_style: notifStyle,
       created_at: reminder?.created_at || new Date().toISOString(),
     }
     saveReminder(newReminder)
     setReminder(newReminder)
+    // Also save as global default for future reminders
+    saveGlobalNotificationStyle(notifStyle)
     setShowReminderForm(false)
   }
 
@@ -354,6 +380,20 @@ export default function HabitDetailPage() {
                 </span>
               ))}
             </div>
+            {/* Notification style tags */}
+            <div className="flex items-center gap-1.5 pt-1">
+              <MessageCircle size={12} className="text-slate-400" />
+              <span className="text-[10px] text-slate-400">Style:</span>
+              {(reminder.notification_style?.plain ?? true) && (
+                <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">Plain</span>
+              )}
+              {(reminder.notification_style?.motivation ?? true) && (
+                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium">Motivation</span>
+              )}
+              {reminder.notification_style?.roast && (
+                <span className="text-[10px] bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full font-medium">Roast 🔥</span>
+              )}
+            </div>
           </div>
         )}
 
@@ -548,6 +588,71 @@ export default function HabitDetailPage() {
               </div>
             </div>
 
+            {/* Notification Style Preferences */}
+            <div>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Notification Style</label>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">Choose what kind of notification messages you want to receive:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifStyle(prev => ({ ...prev, plain: !prev.plain }))}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    notifStyle.plain
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <Bell size={14} className={notifStyle.plain ? 'text-blue-600' : 'text-slate-400'} />
+                    <span className={`text-xs font-semibold ${notifStyle.plain ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      Plain
+                    </span>
+                    {notifStyle.plain && <span className="ml-auto text-blue-600 text-[10px]">✓</span>}
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">Simple reminders like &quot;Time to do X&quot;</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifStyle(prev => ({ ...prev, motivation: !prev.motivation }))}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    notifStyle.motivation
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <Zap size={14} className={notifStyle.motivation ? 'text-emerald-600' : 'text-slate-400'} />
+                    <span className={`text-xs font-semibold ${notifStyle.motivation ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      Motivation
+                    </span>
+                    {notifStyle.motivation && <span className="ml-auto text-emerald-600 text-[10px]">✓</span>}
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">Inspiring quotes to keep you going</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifStyle(prev => ({ ...prev, roast: !prev.roast }))}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    notifStyle.roast
+                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <Flame size={14} className={notifStyle.roast ? 'text-orange-600' : 'text-slate-400'} />
+                    <span className={`text-xs font-semibold ${notifStyle.roast ? 'text-orange-700 dark:text-orange-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      Roast 🔥
+                    </span>
+                    {notifStyle.roast && <span className="ml-auto text-orange-600 text-[10px]">✓</span>}
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">Funny roasts to push you into action</p>
+                </button>
+              </div>
+              {!notifStyle.plain && !notifStyle.motivation && !notifStyle.roast && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5">⚠️ Select at least one style — plain will be used as fallback.</p>
+              )}
+            </div>
+
             {/* Save button */}
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -574,6 +679,76 @@ export default function HabitDetailPage() {
           </p>
         )}
       </div>
+
+      {/* Remaining Tasks Today */}
+      {allHabits.length > 0 && (() => {
+        const today = new Date().toISOString().split('T')[0]
+        const todayLogs = allLogs.filter(l => l.log_date === today)
+        const completedIds = new Set(todayLogs.filter(l => l.completed).map(l => l.habit_id))
+        const pending = allHabits.filter(h => h.is_active && !completedIds.has(h.id))
+        const done = allHabits.filter(h => h.is_active && completedIds.has(h.id))
+        const totalActive = allHabits.filter(h => h.is_active).length
+
+        return (
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Target size={18} className="text-brand-500" />
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Today&apos;s Tasks</h2>
+              </div>
+              <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full">
+                {done.length}/{totalActive} done
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-4">
+              <div
+                className="bg-gradient-to-r from-brand-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${totalActive > 0 ? (done.length / totalActive) * 100 : 0}%` }}
+              />
+            </div>
+
+            {pending.length === 0 ? (
+              <div className="text-center py-3">
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">🎉 All experiments logged today!</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Amazing work — keep the momentum going.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Pending tasks */}
+                {pending.map(h => (
+                  <Link
+                    key={h.id}
+                    href={`/habits/${h.id}/log`}
+                    className="flex items-center gap-3 p-2.5 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors group"
+                  >
+                    <Circle size={16} className="text-amber-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{h.title}</p>
+                      <p className="text-[10px] text-amber-500 dark:text-amber-400">Pending — tap to log</p>
+                    </div>
+                    <span className="text-[10px] text-amber-500 group-hover:text-brand-600 transition-colors">Log →</span>
+                  </Link>
+                ))}
+                {/* Completed tasks */}
+                {done.map(h => (
+                  <div
+                    key={h.id}
+                    className="flex items-center gap-3 p-2.5 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30"
+                  >
+                    <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate line-through">{h.title}</p>
+                      <p className="text-[10px] text-emerald-500">Done ✓</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Log button */}
       <div className="text-center">
