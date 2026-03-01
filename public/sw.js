@@ -3,6 +3,9 @@
 
 const CACHE_NAME = 'habitlab-sw-v1'
 
+// Track scheduled reminder timeouts so we can clear them on update
+let scheduledTimers = []
+
 // Install event
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -44,5 +47,35 @@ self.addEventListener('message', (event) => {
       vibrate: [200, 100, 200],
       requireInteraction: false,
     })
+  }
+
+  // Schedule future notifications so they fire even when the tab is backgrounded
+  if (event.data && event.data.type === 'SCHEDULE_REMINDERS') {
+    // Clear any previously scheduled timers
+    for (const tid of scheduledTimers) {
+      clearTimeout(tid)
+    }
+    scheduledTimers = []
+
+    const reminders = event.data.reminders || []
+    const now = Date.now()
+
+    for (const r of reminders) {
+      const delay = r.fireAt - now
+      if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
+        // Schedule notification to fire at the right time
+        const tid = setTimeout(() => {
+          self.registration.showNotification(r.title || 'HabitLab Reminder', {
+            body: r.body || '',
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: r.tag || `habitlab-scheduled-${Date.now()}`,
+            vibrate: [200, 100, 200],
+            requireInteraction: false,
+          })
+        }, delay)
+        scheduledTimers.push(tid)
+      }
+    }
   }
 })

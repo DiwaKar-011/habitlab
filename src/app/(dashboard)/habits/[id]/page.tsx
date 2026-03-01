@@ -10,6 +10,7 @@ import { analyzeFailures } from '@/lib/failureAnalysis'
 import { generateInsights } from '@/lib/insights'
 import { categoryColors, categoryIcons } from '@/lib/utils'
 import { getReminderForHabit, saveReminder, deleteReminder, getGlobalNotificationStyle, saveGlobalNotificationStyle } from '@/lib/notificationStore'
+import { syncRemindersToServiceWorker } from '@/lib/reminderScheduler'
 import HeatmapCalendar from '@/components/analytics/HeatmapCalendar'
 import FailureChart from '@/components/analytics/FailureChart'
 import StreakFire from '@/components/gamification/StreakFire'
@@ -109,6 +110,8 @@ export default function HabitDetailPage() {
     setReminder(newReminder)
     // Also save as global default for future reminders
     saveGlobalNotificationStyle(notifStyle)
+    // Sync to service worker so notifications fire even in background
+    syncRemindersToServiceWorker()
     setShowReminderForm(false)
   }
 
@@ -117,6 +120,8 @@ export default function HabitDetailPage() {
       deleteReminder(reminder.id)
       setReminder(null)
       setShowReminderForm(false)
+      // Re-sync to service worker after deletion
+      syncRemindersToServiceWorker()
     }
   }
 

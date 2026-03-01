@@ -79,8 +79,13 @@ function shouldFire(reminder: HabitReminder, now: Date, lastFired: Record<string
     for (const t of times) {
       const { h, m } = parseTime(t)
       const schedMin = h * 60 + m
-      // Fire if we're within the same minute as the scheduled time
-      if (Math.abs(nowMin - schedMin) <= 0) {
+      // Fire if we're within ±1 minute window of the scheduled time
+      // (or if scheduled time has passed but hasn't been fired today — catch-up)
+      const diff = nowMin - schedMin
+      const isNearSchedule = Math.abs(diff) <= 1
+      const isMissedToday = diff > 1 && diff <= 60 // missed within the last hour (catch-up window)
+      
+      if (isNearSchedule || isMissedToday) {
         // Build a unique key per time slot so each fires independently
         const slotKey = `${reminder.id}__${t}`
         const last = lastFired[slotKey] || 0
@@ -149,6 +154,8 @@ function getRoastOrMotivation(reminder?: HabitReminder): { type: 'roast' | 'moti
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null
+let lastCheckTimestamp: number = 0
+let listenersAttached = false
 
 function checkWaterReminder(now: Date, lastFired: Record<string, number>) {
   const settings = getWaterSettings()
@@ -183,6 +190,7 @@ function checkWaterReminder(now: Date, lastFired: Record<string, number>) {
 
 export function checkAndFireReminders() {
   const now = new Date()
+  lastCheckTimestamp = now.getTime()
   const reminders = getReminders()
   const lastFired = getLastFired()
 
@@ -215,12 +223,124 @@ export function checkAndFireReminders() {
   checkWaterReminder(now, lastFired)
 }
 
+/**
+ * Sync upcoming reminders to the Service Worker so notifications
+ * can fire even when the tab is backgrounded / throttled.
+ */
+export function syncRemindersToServiceWorker() {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+
+  const now = new Date()
+  const reminders = getReminders()
+  const lastFired = getLastFired()
+  const upcoming: Array<{ title: string; body: string; fireAt: number; tag: string }> = []
+
+  for (const reminder of reminders) {
+    if (!reminder.enabled) continue
+    if (!isTodayEnabled(reminder, now)) continue
+
+    if (reminder.mode === 'scheduled') {
+      // For scheduled reminders, compute exact fire times today
+      const times = reminder.scheduled_times || []
+      for (const t of times) {
+        const { h, m } = parseTime(t)
+        const fireDate = new Date(now)
+        fireDate.setHours(h, m, 0, 0)
+        const slotKey = `${reminder.id}__${t}`
+        const last = lastFired[slotKey] || 0
+        // Only schedule if it's in the future and hasn't fired today
+        if (fireDate.getTime() > now.getTime() && now.getTime() - last >= 12 * 60 * 60 * 1000) {
+          const variation = getRoastOrMotivation(reminder)
+          upcoming.push({
+            title: variation.type === 'reminder' ? `⏰ ${reminder.habit_title}` : variation.title,
+            body: variation.message,
+            fireAt: fireDate.getTime(),
+            tag: `reminder-${slotKey}`,
+          })
+        }
+      }
+    } else {
+      // For recurring reminders, compute the next fire time
+      const last = lastFired[reminder.id] || 0
+      const interval = getIntervalMs(reminder)
+      const nextFire = last === 0 ? now.getTime() + 60000 : last + interval
+      if (nextFire > now.getTime() && isWithinTimeWindow(reminder, new Date(nextFire))) {
+        const variation = getRoastOrMotivation(reminder)
+        upcoming.push({
+          title: variation.type === 'reminder' ? `⏰ ${reminder.habit_title}` : variation.title,
+          body: variation.message,
+          fireAt: nextFire,
+          tag: `reminder-${reminder.id}`,
+        })
+      }
+    }
+  }
+
+  // Send to service worker
+  const sw = navigator.serviceWorker.controller
+  if (sw) {
+    sw.postMessage({ type: 'SCHEDULE_REMINDERS', reminders: upcoming })
+  } else {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.active?.postMessage({ type: 'SCHEDULE_REMINDERS', reminders: upcoming })
+    }).catch(() => {})
+  }
+}
+
+/**
+ * Called when the page regains visibility or focus.
+ * Catches up on any reminders missed while the tab was backgrounded.
+ */
+function onTabResume() {
+  const now = Date.now()
+  // If more than 70s since last check, the interval was likely throttled
+  if (now - lastCheckTimestamp > 70_000) {
+    console.log('[HabitLab] Tab resumed after background — catching up on reminders')
+    checkAndFireReminders()
+    syncRemindersToServiceWorker()
+  }
+}
+
+function attachLifecycleListeners() {
+  if (listenersAttached || typeof document === 'undefined') return
+  listenersAttached = true
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      onTabResume()
+      // Restart interval in case it was killed
+      ensureIntervalRunning()
+    } else {
+      // Tab going to background — sync to SW so it can fire notifications
+      syncRemindersToServiceWorker()
+    }
+  })
+
+  window.addEventListener('focus', () => {
+    onTabResume()
+    ensureIntervalRunning()
+  })
+}
+
+function ensureIntervalRunning() {
+  if (intervalId) return
+  intervalId = setInterval(checkAndFireReminders, 60 * 1000)
+}
+
 export function startReminderScheduler() {
   if (intervalId) return // already running
+
   // Check immediately
   checkAndFireReminders()
+
   // Then check every 60 seconds
   intervalId = setInterval(checkAndFireReminders, 60 * 1000)
+
+  // Attach lifecycle listeners to catch up after background
+  attachLifecycleListeners()
+
+  // Sync upcoming reminders to the service worker
+  syncRemindersToServiceWorker()
 }
 
 export function stopReminderScheduler() {
