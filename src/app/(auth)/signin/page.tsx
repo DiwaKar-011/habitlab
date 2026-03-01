@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff, UserCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase'
-import { signInWithEmailAndPassword, sendEmailVerification, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { upsertProfile } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -18,6 +18,11 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [needsVerification, setNeedsVerification] = useState(false)
   const [resending, setResending] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,6 +139,111 @@ export default function SignInPage() {
     } else {
       setError('Email not verified yet. Please check your inbox and click the verification link.')
     }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetError('')
+    if (!resetEmail.trim()) {
+      setResetError('Please enter your email address.')
+      return
+    }
+    setResetLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim())
+      setResetSent(true)
+    } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/user-not-found') {
+        setResetError('No account found with this email.')
+      } else if (code === 'auth/invalid-email') {
+        setResetError('Please enter a valid email address.')
+      } else if (code === 'auth/too-many-requests') {
+        setResetError('Too many attempts. Please try again later.')
+      } else {
+        setResetError(err?.message || 'Something went wrong. Please try again.')
+      }
+    }
+    setResetLoading(false)
+  }
+
+  if (forgotPassword) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Link href="/" className="inline-flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center">
+                <Beaker size={22} className="text-white" />
+              </div>
+              <span className="font-bold text-xl text-slate-800">HabitLab</span>
+            </Link>
+            <h1 className="mt-6 text-2xl font-bold text-slate-900">Reset Password</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              {resetSent ? 'Check your email for the reset link' : 'Enter your email to receive a reset link'}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            {resetSent ? (
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-4 bg-green-50 rounded-full flex items-center justify-center">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-green-600">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <polyline points="22,4 12,13 2,4" />
+                  </svg>
+                </div>
+                <p className="text-slate-700 font-medium mb-2">Reset Email Sent!</p>
+                <p className="text-slate-500 text-sm mb-6">
+                  We&apos;ve sent a password reset link to <span className="font-semibold text-brand-600">{resetEmail}</span>. Click the link in the email to set a new password.
+                </p>
+                <button
+                  onClick={() => { setForgotPassword(false); setResetSent(false); setResetEmail(''); setResetError('') }}
+                  className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-all"
+                >
+                  Back to Sign In
+                </button>
+                <p className="text-xs text-slate-400 mt-4">Don&apos;t see it? Check your spam folder.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-5">
+                {resetError && (
+                  <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
+                    {resetError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition"
+                    placeholder="you@example.com"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 disabled:opacity-50 transition-all"
+                >
+                  {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotPassword(false); setResetError('') }}
+                  className="w-full text-slate-500 py-2 rounded-lg font-medium hover:bg-slate-50 transition-all text-sm"
+                >
+                  Back to Sign In
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (needsVerification) {
@@ -284,6 +394,15 @@ export default function SignInPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <div className="flex justify-end mt-1">
+                <button
+                  type="button"
+                  onClick={() => { setForgotPassword(true); setResetEmail(email) }}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium hover:underline"
+                >
+                  Forgot Password?
                 </button>
               </div>
             </div>
