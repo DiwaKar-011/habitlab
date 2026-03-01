@@ -150,14 +150,14 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Water Tracker & Dopamine Meter */}
+      {/* Water Tracker, Dopamine Meter & Heatmap */}
       <div className="grid gap-4 md:grid-cols-2">
         <WaterTracker />
         <DopamineMeter completedToday={completedToday} totalHabits={habits.length} />
+        <div className="md:col-span-2">
+          <UsageHeatmap days={90} />
+        </div>
       </div>
-
-      {/* Website Usage Heatmap */}
-      <UsageHeatmap days={90} />
 
       {/* Habit Cards */}
       <div>

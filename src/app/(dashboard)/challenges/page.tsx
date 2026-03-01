@@ -154,6 +154,7 @@ function ChallengesContent() {
   const seededRef = useRef(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createSuccess, setCreateSuccess] = useState(false)
+  const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null)
 
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -243,7 +244,7 @@ function ChallengesContent() {
 
   const joinedIds = new Set(participations.map(p => p.challenge_id))
   const filteredChallenges = challenges.filter(c => {
-    if (tab === 'joined') return joinedIds.has(c.id)
+    if (tab === 'joined') return joinedIds.has(c.id) || c.creator_id === userId
     if (tab === 'ai') return c.is_ai_generated
     return true
   })
@@ -320,14 +321,28 @@ function ChallengesContent() {
       writeLS(LS_CHALLENGES, updated)
       return updated
     })
+    // Auto-join creator to their own challenge
+    const selfJoin: ChallengeParticipant = {
+      id: uid(),
+      challenge_id: newCh.id,
+      user_id: userId,
+      joined_at: new Date().toISOString(),
+      completed_days: 0,
+    }
+    setParticipations(prev => {
+      const updated = [...prev, selfJoin]
+      writeLS(LS_PARTICIPATIONS, updated)
+      return updated
+    })
     setShowCreate(false)
     setFormTitle('')
     setFormDesc('')
     setFormCategory('fitness')
     setFormDuration(7)
     setTab('all')
+    setNewlyCreatedId(newCh.id)
     setCreateSuccess(true)
-    setTimeout(() => setCreateSuccess(false), 3000)
+    setTimeout(() => { setCreateSuccess(false); setNewlyCreatedId(null) }, 4000)
     setActionLoading(null)
   }
 
@@ -552,11 +567,18 @@ function ChallengesContent() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className={`bg-white dark:bg-slate-900 rounded-xl overflow-hidden hover:shadow-md transition-all ${
-                  joined
+                  newlyCreatedId === challenge.id
+                    ? 'border-2 border-green-400 dark:border-green-500 ring-2 ring-green-200 dark:ring-green-800 shadow-lg shadow-green-100 dark:shadow-green-900/20'
+                    : joined
                     ? 'border-2 border-brand-400 dark:border-brand-500 ring-1 ring-brand-200 dark:ring-brand-800'
                     : 'border border-slate-200 dark:border-slate-800'
                 }`}
               >
+                {newlyCreatedId === challenge.id && (
+                  <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium px-4 py-1.5 flex items-center gap-1.5">
+                    <Sparkles size={12} /> Just created!
+                  </div>
+                )}
                 <div className="p-5">
                   {/* Top row */}
                   <div className="flex items-center justify-between mb-3">
