@@ -14,6 +14,8 @@ import type { Challenge, ChallengeParticipant } from '@/types'
 /* ── localStorage helpers ─────────────────────────────────── */
 const LS_CHALLENGES = 'habitlab_challenges'
 const LS_PARTICIPATIONS = 'habitlab_participations'
+const LS_VERSION = 'habitlab_challenges_v'
+const CURRENT_VERSION = 2 // bump to force re-seed
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -31,6 +33,17 @@ function readLS<T>(key: string, fallback: T): T {
 function writeLS<T>(key: string, value: T) {
   if (typeof window === 'undefined') return
   localStorage.setItem(key, JSON.stringify(value))
+}
+
+// Migrate/clear stale data when version bumps
+function migrateIfNeeded() {
+  if (typeof window === 'undefined') return
+  const storedV = Number(localStorage.getItem(LS_VERSION) || '0')
+  if (storedV < CURRENT_VERSION) {
+    localStorage.removeItem(LS_CHALLENGES)
+    localStorage.removeItem(LS_PARTICIPATIONS)
+    localStorage.setItem(LS_VERSION, String(CURRENT_VERSION))
+  }
 }
 
 /* ── Curated AI challenge pool ────────────────────────────── */
@@ -139,6 +152,7 @@ function ChallengesContent() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [generatingAI, setGeneratingAI] = useState(false)
   const seededRef = useRef(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -160,6 +174,7 @@ function ChallengesContent() {
   /* ── load on mount ────────────────────────────────────── */
   const loadData = useCallback(() => {
     setLoading(true)
+    migrateIfNeeded()
     const stored = readLS<Challenge[]>(LS_CHALLENGES, [])
     const storedP = readLS<ChallengeParticipant[]>(LS_PARTICIPATIONS, [])
     setChallenges(stored)
@@ -275,7 +290,15 @@ function ChallengesContent() {
   }
 
   const handleCreate = () => {
-    if (!userId || !formTitle.trim()) return
+    setCreateError(null)
+    if (!userId) {
+      setCreateError('You must be signed in to create a challenge.')
+      return
+    }
+    if (!formTitle.trim()) {
+      setCreateError('Please enter a challenge title.')
+      return
+    }
     setActionLoading('create')
     const startDate = new Date().toISOString().split('T')[0]
     const newCh: Challenge = {
@@ -462,6 +485,11 @@ function ChallengesContent() {
                     </select>
                   </div>
                 </div>
+                {createError && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded-lg text-xs">
+                    {createError}
+                  </div>
+                )}
                 <button
                   onClick={handleCreate}
                   disabled={actionLoading === 'create' || !formTitle.trim()}
