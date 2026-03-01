@@ -591,65 +591,82 @@ export default function HabitDetailPage() {
             {/* Notification Style Preferences */}
             <div>
               <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Notification Style</label>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">Choose what kind of notification messages you want to receive:</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-3">Pick your vibe — toggle one or more:</p>
+              <div className="grid grid-cols-3 gap-3">
+                {/* Plain */}
                 <button
                   type="button"
                   onClick={() => setNotifStyle(prev => ({ ...prev, plain: !prev.plain }))}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 transform hover:scale-[1.03] active:scale-95 ${
                     notifStyle.plain
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Bell size={14} className={notifStyle.plain ? 'text-blue-600' : 'text-slate-400'} />
-                    <span className={`text-xs font-semibold ${notifStyle.plain ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                      Plain
-                    </span>
-                    {notifStyle.plain && <span className="ml-auto text-blue-600 text-[10px]">✓</span>}
+                  <div className="text-3xl mb-2">🔔</div>
+                  <div className={`text-sm font-bold ${notifStyle.plain ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                    Plain
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">Simple reminders like &quot;Time to do X&quot;</p>
+                  <div className={`text-[10px] mt-0.5 ${notifStyle.plain ? 'text-blue-100' : 'text-slate-400'}`}>
+                    Simple & clean
+                  </div>
+                  {notifStyle.plain && (
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">✓</span>
+                    </div>
+                  )}
                 </button>
+
+                {/* Motivation */}
                 <button
                   type="button"
                   onClick={() => setNotifStyle(prev => ({ ...prev, motivation: !prev.motivation }))}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 transform hover:scale-[1.03] active:scale-95 ${
                     notifStyle.motivation
-                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Zap size={14} className={notifStyle.motivation ? 'text-emerald-600' : 'text-slate-400'} />
-                    <span className={`text-xs font-semibold ${notifStyle.motivation ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                      Motivation
-                    </span>
-                    {notifStyle.motivation && <span className="ml-auto text-emerald-600 text-[10px]">✓</span>}
+                  <div className="text-3xl mb-2">💪</div>
+                  <div className={`text-sm font-bold ${notifStyle.motivation ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                    Motivation
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">Inspiring quotes to keep you going</p>
+                  <div className={`text-[10px] mt-0.5 ${notifStyle.motivation ? 'text-emerald-100' : 'text-slate-400'}`}>
+                    Inspiring quotes
+                  </div>
+                  {notifStyle.motivation && (
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">✓</span>
+                    </div>
+                  )}
                 </button>
+
+                {/* Roast */}
                 <button
                   type="button"
                   onClick={() => setNotifStyle(prev => ({ ...prev, roast: !prev.roast }))}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 transform hover:scale-[1.03] active:scale-95 ${
                     notifStyle.roast
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-400 animate-pulse-slow'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Flame size={14} className={notifStyle.roast ? 'text-orange-600' : 'text-slate-400'} />
-                    <span className={`text-xs font-semibold ${notifStyle.roast ? 'text-orange-700 dark:text-orange-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                      Roast 🔥
-                    </span>
-                    {notifStyle.roast && <span className="ml-auto text-orange-600 text-[10px]">✓</span>}
+                  <div className="text-3xl mb-2">🔥</div>
+                  <div className={`text-sm font-bold ${notifStyle.roast ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                    Roast Me
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">Funny roasts to push you into action</p>
+                  <div className={`text-[10px] mt-0.5 ${notifStyle.roast ? 'text-orange-100' : 'text-slate-400'}`}>
+                    Savage & funny
+                  </div>
+                  {notifStyle.roast && (
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">✓</span>
+                    </div>
+                  )}
                 </button>
               </div>
               {!notifStyle.plain && !notifStyle.motivation && !notifStyle.roast && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5">⚠️ Select at least one style — plain will be used as fallback.</p>
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-2">⚠️ Select at least one style — plain will be used as fallback.</p>
               )}
             </div>
 

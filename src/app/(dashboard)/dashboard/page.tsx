@@ -15,6 +15,7 @@ import StreakFire from '@/components/gamification/StreakFire'
 import DopamineMeter from '@/components/gamification/DopamineMeter'
 import NeuralPathwayBar from '@/components/gamification/NeuralPathwayBar'
 import WaterTracker from '@/components/gamification/WaterTracker'
+import UsageHeatmap from '@/components/analytics/UsageHeatmap'
 import { getHabits, getAllStreaks, getAllLogs, getLogsForHabit, getStreak, getProfile } from '@/lib/db'
 import { calculateHabitStrength, calculateConsistency } from '@/lib/scoring'
 import { categoryColors, categoryIcons } from '@/lib/utils'
@@ -154,6 +155,9 @@ export default function DashboardPage() {
         <WaterTracker />
         <DopamineMeter completedToday={completedToday} totalHabits={habits.length} />
       </div>
+
+      {/* Website Usage Heatmap */}
+      <UsageHeatmap days={90} />
 
       {/* Habit Cards */}
       <div>
