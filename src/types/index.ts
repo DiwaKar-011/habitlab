@@ -234,3 +234,29 @@ export interface HabitPrediction {
   benefits: string[]
   science_fact: string
 }
+
+// Water tracker
+export interface WaterSettings {
+  enabled: boolean
+  daily_goal_ml: number          // daily target in ml
+  glass_size_ml: number          // size of one glass in ml (default 250)
+  reminder_enabled: boolean
+  reminder_frequency: ReminderFrequency
+  custom_interval_min?: number
+  start_time: string             // HH:MM
+  end_time: string               // HH:MM
+  days_of_week: number[]
+}
+
+export interface WaterLog {
+  date: string                   // YYYY-MM-DD
+  glasses: number                // number of glasses consumed
+  total_ml: number               // total ml consumed
+  entries: WaterEntry[]          // individual drink entries
+}
+
+export interface WaterEntry {
+  id: string
+  time: string                   // ISO string
+  amount_ml: number
+}

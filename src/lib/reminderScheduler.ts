@@ -8,6 +8,7 @@ import {
   sendBrowserNotification,
 } from './notificationStore'
 import { getRandomQuote, getRandomRoast } from './motivationQuotes'
+import { getWaterSettings, getRandomWaterMessage } from './waterStore'
 
 const LAST_FIRED_KEY = 'habitlab_reminder_last_fired'
 
@@ -103,6 +104,36 @@ function getRoastOrMotivation(): { type: 'roast' | 'motivation' | 'reminder'; ti
 
 let intervalId: ReturnType<typeof setInterval> | null = null
 
+function checkWaterReminder(now: Date, lastFired: Record<string, number>) {
+  const settings = getWaterSettings()
+  if (!settings.enabled || !settings.reminder_enabled) return
+
+  // Build a virtual HabitReminder for the water reminder
+  const waterReminder: HabitReminder = {
+    id: 'water-reminder',
+    habit_id: 'water',
+    habit_title: 'Drink Water',
+    enabled: true,
+    frequency: settings.reminder_frequency,
+    custom_interval_min: settings.custom_interval_min,
+    start_time: settings.start_time,
+    end_time: settings.end_time,
+    days_of_week: settings.days_of_week,
+    created_at: '',
+  }
+
+  if (shouldFire(waterReminder, now, lastFired)) {
+    const msg = getRandomWaterMessage()
+    addNotification({
+      type: 'reminder',
+      title: '💧 Drink Water',
+      message: msg,
+    })
+    sendBrowserNotification('💧 Drink Water', msg)
+    setLastFired('water-reminder', now.getTime())
+  }
+}
+
 export function checkAndFireReminders() {
   const now = new Date()
   const reminders = getReminders()
@@ -128,6 +159,9 @@ export function checkAndFireReminders() {
       setLastFired(reminder.id, now.getTime())
     }
   }
+
+  // Also check water reminders
+  checkWaterReminder(now, lastFired)
 }
 
 export function startReminderScheduler() {
