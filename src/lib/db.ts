@@ -583,12 +583,14 @@ export async function addFirestoreNotification(targetUserId: string, notif: {
   type: string
   title: string
   message: string
+  link?: string
 }) {
   await addDoc(collection(db, 'notifications'), {
     user_id: targetUserId,
     type: notif.type,
     title: notif.title,
     message: notif.message,
+    link: notif.link || '',
     read: false,
     created_at: new Date().toISOString(),
   })

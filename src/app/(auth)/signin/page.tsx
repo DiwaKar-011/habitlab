@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff, UserCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase'
-import { signInWithEmailAndPassword, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendEmailVerification, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { upsertProfile } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -16,6 +16,8 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resending, setResending] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,6 +26,13 @@ export default function SignInPage() {
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password)
+
+      // Check email verification for email/password users
+      if (!cred.user.emailVerified) {
+        setNeedsVerification(true)
+        setLoading(false)
+        return
+      }
 
       // Ensure profile exists (non-blocking)
       try {
@@ -91,6 +100,94 @@ export default function SignInPage() {
     } catch (err: any) {
       setError(err?.message || 'Google sign-in failed.')
     }
+  }
+
+  const handleResendVerification = async () => {
+    const currentUser = auth.currentUser
+    if (!currentUser) return
+    setResending(true)
+    try {
+      await sendEmailVerification(currentUser)
+      setError('')
+    } catch {
+      setError('Failed to resend. Please wait a moment and try again.')
+    }
+    setResending(false)
+  }
+
+  const handleContinueAfterVerification = async () => {
+    const currentUser = auth.currentUser
+    if (!currentUser) return
+    await currentUser.reload()
+    if (currentUser.emailVerified) {
+      // Ensure profile exists
+      try {
+        await upsertProfile({
+          id: currentUser.uid,
+          email: currentUser.email || email,
+          name: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+          avatar_url: currentUser.photoURL || undefined,
+        })
+      } catch {}
+      router.push('/dashboard')
+      router.refresh()
+    } else {
+      setError('Email not verified yet. Please check your inbox and click the verification link.')
+    }
+  }
+
+  if (needsVerification) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-500 to-accent-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Beaker size={32} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Verify Your Email</h1>
+            <p className="mt-2 text-sm text-slate-500">Your email is not verified yet.</p>
+            <p className="text-sm font-semibold text-brand-600 mt-1">{email}</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-4 bg-brand-50 rounded-full flex items-center justify-center">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-brand-600">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <polyline points="22,4 12,13 2,4" />
+              </svg>
+            </div>
+            <p className="text-slate-600 text-sm mb-6">
+              Please verify your email to sign in. Check your inbox for the verification link.
+            </p>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4">
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleContinueAfterVerification}
+              className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-all mb-3"
+            >
+              I&apos;ve Verified — Continue
+            </button>
+
+            <button
+              onClick={handleResendVerification}
+              disabled={resending}
+              className="w-full text-brand-600 py-2.5 rounded-lg font-medium hover:bg-brand-50 transition-all text-sm disabled:opacity-50"
+            >
+              {resending ? 'Sending...' : 'Resend Verification Email'}
+            </button>
+
+            <p className="text-xs text-slate-400 mt-4">
+              Don&apos;t see the email? Check your spam folder.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

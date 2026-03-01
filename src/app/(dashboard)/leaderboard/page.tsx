@@ -111,6 +111,7 @@ export default function LeaderboardPage() {
         type: 'friend',
         title: 'New Friend Request',
         message: `${senderName} sent you a friend request!`,
+        link: '/profile',
       })
     } catch (err) { console.error(err) }
     setAddingFriend(null)

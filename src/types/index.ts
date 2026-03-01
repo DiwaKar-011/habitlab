@@ -203,6 +203,7 @@ export interface AppNotification {
   title: string
   message: string
   habit_id?: string
+  link?: string
   read: boolean
   created_at: string
 }

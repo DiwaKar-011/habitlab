@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bell, Check, CheckCheck, Trash2, Settings, X } from 'lucide-react'
+import { Bell, Check, CheckCheck, Trash2, Settings, X, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppNotification } from '@/types'
 import {
@@ -18,6 +18,7 @@ import { fetchAndConsumeNotifications } from '@/lib/db'
 import { startReminderScheduler } from '@/lib/reminderScheduler'
 import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false)
@@ -25,6 +26,7 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
+  const router = useRouter()
 
   // Register service worker, request permission & start scheduler
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function NotificationBell() {
             type: data.type || 'friend',
             title: data.title || 'Notification',
             message: data.message || '',
+            link: data.link || '',
           })
           // Also push a browser notification
           sendBrowserNotification(data.title || 'HabitLab', data.message || '')
@@ -207,10 +210,31 @@ export default function NotificationBell() {
                 <div
                   key={n.id}
                   className={cn(
-                    'px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer',
-                    !n.read && 'bg-blue-50/40'
+                    'px-4 py-3 flex gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer',
+                    !n.read && 'bg-blue-50/40 dark:bg-blue-900/20'
                   )}
-                  onClick={() => handleMarkRead(n.id)}
+                  onClick={() => {
+                    handleMarkRead(n.id)
+                    if (n.link) {
+                      setOpen(false)
+                      router.push(n.link)
+                    } else if (n.type === 'friend') {
+                      setOpen(false)
+                      router.push('/profile')
+                    } else if (n.type === 'badge') {
+                      setOpen(false)
+                      router.push('/profile')
+                    } else if (n.type === 'challenge') {
+                      setOpen(false)
+                      router.push('/challenges')
+                    } else if (n.type === 'streak' && n.habit_id) {
+                      setOpen(false)
+                      router.push(`/habits/${n.habit_id}`)
+                    } else if (n.habit_id) {
+                      setOpen(false)
+                      router.push(`/habits/${n.habit_id}`)
+                    }
+                  }}
                 >
                   <div className="flex-shrink-0 mt-0.5">
                     <span

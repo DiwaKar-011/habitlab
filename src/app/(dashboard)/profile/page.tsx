@@ -267,6 +267,7 @@ export default function ProfilePage() {
         type: 'friend',
         title: 'Friend Request Accepted',
         message: `${acceptorName} accepted your friend request!`,
+        link: '/profile',
       })
     } catch (err) { console.error(err) }
   }

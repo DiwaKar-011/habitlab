@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff } from 'lucide-react'
 import { auth } from '@/lib/firebase'
-import { createUserWithEmailAndPassword, updateProfile, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { upsertProfile, isUsernameTaken } from '@/lib/db'
 
 export default function SignUpPage() {
@@ -19,6 +19,8 @@ export default function SignUpPage() {
   const [usernameError, setUsernameError] = useState('')
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verificationSent, setVerificationSent] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState('')
 
   const validatePassword = (pw: string) => {
     if (pw.length < 8) return 'Password must be at least 8 characters'
@@ -101,9 +103,16 @@ export default function SignUpPage() {
         // Profile creation is non-blocking
       }
 
+      // Send email verification
+      try {
+        await sendEmailVerification(cred.user)
+      } catch (err) {
+        console.error('Failed to send verification email:', err)
+      }
+
       setLoading(false)
-      router.push('/dashboard')
-      router.refresh()
+      setVerificationEmail(email)
+      setVerificationSent(true)
     } catch (err: any) {
       const code = err?.code || ''
       if (code === 'auth/email-already-in-use') {
@@ -122,22 +131,12 @@ export default function SignUpPage() {
     try {
       const provider = new GithubAuthProvider()
       const result = await signInWithPopup(auth, provider)
-      // Generate a unique username from display name or email
-      const baseName = (result.user.displayName || result.user.email?.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
-      let uname = baseName.slice(0, 16)
-      let taken = await isUsernameTaken(uname)
-      let attempt = 1
-      while (taken) {
-        uname = `${baseName.slice(0, 14)}${attempt}`
-        taken = await isUsernameTaken(uname)
-        attempt++
-      }
+      // Create profile without username — UsernameGate will prompt the user to choose one
       try {
         await upsertProfile({
           id: result.user.uid,
           email: result.user.email || '',
           name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          username: uname,
           avatar_url: result.user.photoURL || undefined,
         })
       } catch {}
@@ -153,22 +152,12 @@ export default function SignUpPage() {
     try {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
-      // Generate a unique username from display name or email
-      const baseName = (result.user.displayName || result.user.email?.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
-      let uname = baseName.slice(0, 16)
-      let taken = await isUsernameTaken(uname)
-      let attempt = 1
-      while (taken) {
-        uname = `${baseName.slice(0, 14)}${attempt}`
-        taken = await isUsernameTaken(uname)
-        attempt++
-      }
+      // Create profile without username — UsernameGate will prompt the user to choose one
       try {
         await upsertProfile({
           id: result.user.uid,
           email: result.user.email || '',
           name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          username: uname,
           avatar_url: result.user.photoURL || undefined,
         })
       } catch {}
@@ -177,6 +166,87 @@ export default function SignUpPage() {
     } catch (err: any) {
       setError(err?.message || 'Google sign-up failed.')
     }
+  }
+
+  // Email verification screen
+  if (verificationSent) {
+    const handleResendVerification = async () => {
+      const currentUser = auth.currentUser
+      if (currentUser) {
+        try {
+          await sendEmailVerification(currentUser)
+          setError('')
+        } catch (err: any) {
+          setError('Failed to resend. Please wait a moment and try again.')
+        }
+      }
+    }
+
+    const handleContinueAfterVerification = async () => {
+      const currentUser = auth.currentUser
+      if (currentUser) {
+        await currentUser.reload()
+        if (currentUser.emailVerified) {
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          setError('Email not verified yet. Please check your inbox and click the verification link.')
+        }
+      }
+    }
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-500 to-accent-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Beaker size={32} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Verify Your Email</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              We&apos;ve sent a verification email to
+            </p>
+            <p className="text-sm font-semibold text-brand-600 mt-1">{verificationEmail}</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-4 bg-brand-50 rounded-full flex items-center justify-center">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-brand-600">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <polyline points="22,4 12,13 2,4" />
+              </svg>
+            </div>
+            <p className="text-slate-600 text-sm mb-6">
+              Please click the link in your email to verify your account, then click the button below to continue.
+            </p>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4">
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleContinueAfterVerification}
+              className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-all mb-3"
+            >
+              I&apos;ve Verified — Continue
+            </button>
+
+            <button
+              onClick={handleResendVerification}
+              className="w-full text-brand-600 py-2.5 rounded-lg font-medium hover:bg-brand-50 transition-all text-sm"
+            >
+              Resend Verification Email
+            </button>
+
+            <p className="text-xs text-slate-400 mt-4">
+              Don&apos;t see the email? Check your spam folder.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
