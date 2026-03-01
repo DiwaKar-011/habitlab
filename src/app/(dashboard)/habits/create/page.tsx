@@ -96,6 +96,8 @@ export default function CreateHabitPage() {
   const [newControlVar, setNewControlVar] = useState('')
   const [targetDays, setTargetDays] = useState(21)
 
+  const [controlVarError, setControlVarError] = useState(false)
+
   // Filter suggestions when title or category changes
   const handleTitleChange = (value: string) => {
     setTitle(value)
@@ -153,6 +155,10 @@ export default function CreateHabitPage() {
     if (newControlVar.trim()) {
       setControlVars([...controlVars, newControlVar.trim()])
       setNewControlVar('')
+      setControlVarError(false)
+    } else {
+      setControlVarError(true)
+      setTimeout(() => setControlVarError(false), 2000)
     }
   }
 
@@ -339,6 +345,12 @@ export default function CreateHabitPage() {
                 <span>Medium</span>
                 <span>Hard</span>
               </div>
+              <div className="mt-2 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg px-3 py-2 border border-purple-100 dark:border-purple-800/40">
+                <p className="text-[10px] font-medium text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                  ⚡ XP Reward: {difficulty <= 2 ? '5–15 XP (Easy)' : difficulty <= 3 ? '15–30 XP (Medium)' : '30–50 XP (Hard)'}
+                  {' '}+ streak bonus per log
+                </p>
+              </div>
             </div>
           </div>
         </motion.section>
@@ -397,26 +409,39 @@ export default function CreateHabitPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Control Variables
               </label>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2 leading-relaxed">
+                🔬 <strong>What stays the same?</strong> Control variables are things you keep constant so your experiment is fair.
+                <br />Example: If testing &quot;Morning Run&quot;, controls could be &quot;Sleep time&quot;, &quot;Diet&quot;, &quot;Same route&quot;.
+              </p>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={newControlVar}
-                  onChange={(e) => setNewControlVar(e.target.value)}
+                  onChange={(e) => { setNewControlVar(e.target.value); setControlVarError(false) }}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addControlVar())}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800"
-                  placeholder="What stays the same"
+                  className={`flex-1 px-4 py-2.5 rounded-lg border text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none dark:bg-slate-800 transition-colors ${
+                    controlVarError
+                      ? 'border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-900/10'
+                      : 'border-slate-300 dark:border-slate-700'
+                  }`}
+                  placeholder="e.g. Sleep by 10 PM, Same diet..."
                 />
                 <button
                   type="button"
                   onClick={addControlVar}
-                  className="px-3 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  className="px-4 py-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors flex items-center gap-1.5 font-medium text-sm"
                 >
-                  <Plus size={18} />
+                  <Plus size={16} /> Add
                 </button>
               </div>
+              {controlVarError && (
+                <p className="text-[10px] text-red-500 dark:text-red-400 mb-2">
+                  ⚠️ Type something first, then click Add!
+                </p>
+              )}
               {controlVars.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {controlVars.map((cv, i) => (

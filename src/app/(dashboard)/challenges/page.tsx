@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import GuestGuard from '@/components/GuestGuard'
+import { User as UserIcon } from 'lucide-react'
 import type { Challenge, ChallengeParticipant } from '@/types'
 
 /* ── localStorage helpers ─────────────────────────────────── */
@@ -282,6 +283,7 @@ function ChallengesContent() {
       title: formTitle.trim(),
       description: formDesc.trim() || undefined,
       creator_id: userId,
+      creator_name: user?.displayName || user?.email?.split('@')[0] || 'You',
       category: formCategory,
       duration_days: formDuration,
       is_public: true,
@@ -529,11 +531,21 @@ function ChallengesContent() {
                         {challenge.category}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {challenge.is_ai_generated && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {challenge.is_ai_generated ? (
                         <span className="text-[10px] bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                           <Sparkles size={9} />
-                          AI
+                          AI Generated
+                        </span>
+                      ) : challenge.creator_id === userId ? (
+                        <span className="text-[10px] bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                          <UserIcon size={9} />
+                          By You
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                          <Users size={9} />
+                          {challenge.creator_name || 'Community'}
                         </span>
                       )}
                       {challenge.is_public && (

@@ -138,6 +138,7 @@ export interface Challenge {
   title: string
   description?: string
   creator_id: string
+  creator_name?: string
   category?: string
   duration_days: number
   is_public: boolean

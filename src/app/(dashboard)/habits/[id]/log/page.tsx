@@ -106,7 +106,7 @@ export default function DailyLogPage() {
       const newStreakCount = updatedStreakData?.current_streak || (streak?.current_streak || 0) + (completed ? 1 : 0)
 
       // Award XP
-      const xp = calculateXPForLog(completed, newStreakCount)
+      const xp = calculateXPForLog(completed, newStreakCount, habit.difficulty)
       if (xp > 0) {
         await updateProfileXP(user.id, xp)
         setXpEarned(xp)
@@ -204,6 +204,16 @@ export default function DailyLogPage() {
           <h2 className="text-lg font-semibold text-center text-slate-700 dark:text-slate-200 mb-6">
             Did you complete this habit today?
           </h2>
+
+          {/* XP Range Info */}
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-3 text-center">
+            <p className="text-xs font-medium text-purple-700 dark:text-purple-300 flex items-center justify-center gap-1.5">
+              <Sparkles size={12} />
+              Difficulty {habit.difficulty}/5 — Earn
+              {habit.difficulty <= 2 ? ' 5–15' : habit.difficulty <= 3 ? ' 15–30' : ' 30–50'} XP
+              {' '}+ streak bonus
+            </p>
+          </div>
 
           {/* Honesty Motivation */}
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-center mb-2">
