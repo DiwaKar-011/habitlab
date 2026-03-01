@@ -49,6 +49,7 @@ import {
   deleteUserAccount,
   getFriendStats,
   getUserRank,
+  addFirestoreNotification,
 } from '@/lib/db'
 import {
   deleteUser,
@@ -260,6 +261,13 @@ export default function ProfilePage() {
         const rank = await getUserRank(fromUserId)
         setFriendRanks((prev) => ({ ...prev, [fromUserId]: rank }))
       } catch {}
+      // Notify the sender that their request was accepted
+      const acceptorName = profile?.name || profile?.username || 'Someone'
+      await addFirestoreNotification(fromUserId, {
+        type: 'friend',
+        title: 'Friend Request Accepted',
+        message: `${acceptorName} accepted your friend request!`,
+      })
     } catch (err) { console.error(err) }
   }
 

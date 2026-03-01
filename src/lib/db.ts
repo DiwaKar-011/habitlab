@@ -578,6 +578,37 @@ export async function removeFriend(userId: string, friendId: string) {
   await deleteDoc(doc(db, 'friend_requests', compositeId))
 }
 
+// ── CROSS-USER NOTIFICATIONS (Firestore-backed) ────────────
+export async function addFirestoreNotification(targetUserId: string, notif: {
+  type: string
+  title: string
+  message: string
+}) {
+  await addDoc(collection(db, 'notifications'), {
+    user_id: targetUserId,
+    type: notif.type,
+    title: notif.title,
+    message: notif.message,
+    read: false,
+    created_at: new Date().toISOString(),
+  })
+}
+
+export async function fetchAndConsumeNotifications(userId: string) {
+  const q = query(
+    collection(db, 'notifications'),
+    where('user_id', '==', userId),
+    where('read', '==', false)
+  )
+  const snap = await getDocs(q)
+  const notifications = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  // Mark them as read so they don't get fetched again
+  await Promise.all(
+    snap.docs.map((d) => updateDoc(doc(db, 'notifications', d.id), { read: true }))
+  )
+  return notifications
+}
+
 export async function getFriends(userId: string): Promise<any[]> {
   const q = query(collection(db, 'friends'), where('user_id', '==', userId))
   const snap = await getDocs(q)

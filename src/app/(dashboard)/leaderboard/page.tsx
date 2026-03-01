@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trophy, Users, UserPlus, Search, X, Eye, Loader2 } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
-import { getLeaderboard, getFriends, sendFriendRequest, getFriendStats, searchUsers, getUserRank, getTotalUserCount } from '@/lib/db'
+import { getLeaderboard, getFriends, sendFriendRequest, getFriendStats, searchUsers, getUserRank, getTotalUserCount, addFirestoreNotification, getProfile } from '@/lib/db'
 import type { User } from '@/types'
 
 const rankLabels = ['🥇', '🥈', '🥉']
@@ -104,6 +104,14 @@ export default function LeaderboardPage() {
     try {
       await sendFriendRequest(user.id, targetId)
       setSentRequests((prev) => { const next = new Set(Array.from(prev)); next.add(targetId); return next })
+      // Notify the recipient about the friend request
+      const senderProfile = await getProfile(user.id)
+      const senderName = senderProfile?.name || senderProfile?.username || 'Someone'
+      await addFirestoreNotification(targetId, {
+        type: 'friend',
+        title: 'New Friend Request',
+        message: `${senderName} sent you a friend request!`,
+      })
     } catch (err) { console.error(err) }
     setAddingFriend(null)
   }

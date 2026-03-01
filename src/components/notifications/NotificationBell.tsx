@@ -11,8 +11,12 @@ import {
   markAllRead,
   clearNotifications,
   initNotifications,
+  addNotification,
+  sendBrowserNotification,
 } from '@/lib/notificationStore'
+import { fetchAndConsumeNotifications } from '@/lib/db'
 import { startReminderScheduler } from '@/lib/reminderScheduler'
+import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
 
 export default function NotificationBell() {
@@ -20,6 +24,7 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [unread, setUnread] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
+  const { user } = useAuth()
 
   // Register service worker, request permission & start scheduler
   useEffect(() => {
@@ -40,6 +45,38 @@ export default function NotificationBell() {
     const id = setInterval(refresh, 5000) // poll every 5s
     return () => clearInterval(id)
   }, [])
+
+  // Poll Firestore for cross-user notifications (friend requests, etc.)
+  useEffect(() => {
+    if (!user || user.isAnonymous) return
+    let cancelled = false
+
+    const pollFirestore = async () => {
+      try {
+        const pending = await fetchAndConsumeNotifications(user.uid)
+        if (cancelled || pending.length === 0) return
+        for (const n of pending) {
+          const data = n as any
+          addNotification({
+            type: data.type || 'friend',
+            title: data.title || 'Notification',
+            message: data.message || '',
+          })
+          // Also push a browser notification
+          sendBrowserNotification(data.title || 'HabitLab', data.message || '')
+        }
+        // Refresh local state
+        setNotifications(getNotifications())
+        setUnread(getUnreadCount())
+      } catch (err) {
+        console.error('[HabitLab] Firestore notification poll error:', err)
+      }
+    }
+
+    pollFirestore()
+    const id = setInterval(pollFirestore, 15000) // poll every 15s
+    return () => { cancelled = true; clearInterval(id) }
+  }, [user])
 
   // Close on outside click
   useEffect(() => {
