@@ -341,12 +341,34 @@ export function startReminderScheduler() {
 
   // Sync upcoming reminders to the service worker
   syncRemindersToServiceWorker()
+
+  // Also trigger server-side push check every 2 minutes
+  // This acts as a keep-alive so the server sends push notifications
+  // even if this tab goes idle. When the tab is closed entirely,
+  // the server cron (or Vercel Cron) handles it.
+  startPushKeepAlive()
+}
+
+let pushKeepAliveId: ReturnType<typeof setInterval> | null = null
+
+function startPushKeepAlive() {
+  if (pushKeepAliveId) return
+  // Trigger the server push check every 2 minutes as a backup
+  pushKeepAliveId = setInterval(() => {
+    fetch('/api/push/send').catch(() => {})
+  }, 2 * 60 * 1000)
+  // Also fire once immediately
+  fetch('/api/push/send').catch(() => {})
 }
 
 export function stopReminderScheduler() {
   if (intervalId) {
     clearInterval(intervalId)
     intervalId = null
+  }
+  if (pushKeepAliveId) {
+    clearInterval(pushKeepAliveId)
+    pushKeepAliveId = null
   }
 }
 

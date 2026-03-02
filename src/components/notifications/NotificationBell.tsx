@@ -16,6 +16,7 @@ import {
 } from '@/lib/notificationStore'
 import { fetchAndConsumeNotifications } from '@/lib/db'
 import { startReminderScheduler } from '@/lib/reminderScheduler'
+import { subscribeToPush, syncRemindersToServer } from '@/lib/pushSubscription'
 import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -34,6 +35,13 @@ export default function NotificationBell() {
     initNotifications().then((perm) => {
       if (perm === 'granted') {
         console.log('[HabitLab] Notification permission granted')
+        // Subscribe to Web Push so notifications work even when website is closed
+        if (user && !user.isAnonymous) {
+          subscribeToPush(user.uid).then(() => {
+            // Sync reminders to server for offline push
+            syncRemindersToServer(user.uid)
+          })
+        }
       }
     })
 
@@ -46,7 +54,7 @@ export default function NotificationBell() {
     refresh()
     const id = setInterval(refresh, 5000) // poll every 5s
     return () => clearInterval(id)
-  }, [])
+  }, [user])
 
   // Poll Firestore for cross-user notifications (friend requests, etc.)
   useEffect(() => {

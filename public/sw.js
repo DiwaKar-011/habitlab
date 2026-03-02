@@ -1,4 +1,5 @@
 // HabitLab Service Worker — enables push notifications on Android
+// Supports both local notifications AND Web Push (offline) notifications
 // This file must be served from the root scope (/)
 
 const CACHE_NAME = 'habitlab-sw-v1'
@@ -16,9 +17,43 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
+// ─── Web Push: fires even when the website is completely closed ───
+self.addEventListener('push', (event) => {
+  let data = { title: 'HabitLab', body: 'Time to check your habits!', url: '/dashboard' }
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() }
+    } catch {
+      data.body = event.data.text() || data.body
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: data.tag || `habitlab-push-${Date.now()}`,
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+    data: { url: data.url || '/dashboard' },
+    actions: [
+      { action: 'open', title: 'Open HabitLab' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  }
+
+  event.waitUntil(self.registration.showNotification(data.title, options))
+})
+
 // Listen for notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
+
+  const url = event.notification.data?.url || '/dashboard'
+
+  // Handle action buttons
+  if (event.action === 'dismiss') return
 
   // Open or focus the app
   event.waitUntil(
@@ -30,7 +65,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       // Otherwise open a new tab
-      return self.clients.openWindow('/dashboard')
+      return self.clients.openWindow(url)
     })
   )
 })

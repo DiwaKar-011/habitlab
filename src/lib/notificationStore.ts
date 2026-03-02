@@ -74,11 +74,31 @@ export function saveReminder(reminder: HabitReminder) {
     all.push(reminder)
   }
   localStorage.setItem(REMINDER_KEY, JSON.stringify(all))
+  // Auto-sync to server for offline push notifications
+  triggerServerSync()
 }
 
 export function deleteReminder(id: string) {
   const all = getReminders().filter(r => r.id !== id)
   localStorage.setItem(REMINDER_KEY, JSON.stringify(all))
+  // Auto-sync to server for offline push notifications
+  triggerServerSync()
+}
+
+/** Debounced sync to server when reminders change */
+let syncTimeout: ReturnType<typeof setTimeout> | null = null
+function triggerServerSync() {
+  if (syncTimeout) clearTimeout(syncTimeout)
+  syncTimeout = setTimeout(async () => {
+    try {
+      const { syncRemindersToServer } = await import('./pushSubscription')
+      // Get current user ID from localStorage or auth
+      const uid = localStorage.getItem('habitlab_push_uid')
+      if (uid) {
+        syncRemindersToServer(uid)
+      }
+    } catch {}
+  }, 1000)
 }
 
 export function getReminderForHabit(habitId: string): HabitReminder | undefined {
