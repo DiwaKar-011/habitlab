@@ -33,17 +33,20 @@ export default function NotificationBell() {
   useEffect(() => {
     // Register SW + request notification permission
     initNotifications().then((perm) => {
-      if (perm === 'granted') {
+      if (perm === 'granted' && user && !user.isAnonymous) {
         console.log('[HabitLab] Notification permission granted')
         // Subscribe to Web Push so notifications work even when website is closed
-        if (user && !user.isAnonymous) {
-          subscribeToPush(user.uid).then(() => {
-            // Sync reminders to server for offline push
-            syncRemindersToServer(user.uid)
-          })
-        }
+        subscribeToPush(user.uid).then(() => {
+          // Sync ALL reminders to server so push works even when browser is closed
+          syncRemindersToServer(user.uid)
+        })
       }
     })
+
+    // Also sync reminders to server on every visit (in case user changed them)
+    if (user && !user.isAnonymous) {
+      syncRemindersToServer(user.uid)
+    }
 
     startReminderScheduler()
 

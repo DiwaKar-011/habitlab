@@ -185,6 +185,37 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   try {
     const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
     console.log('[HabitLab] Service Worker registered:', registration.scope)
+
+    // Register Periodic Background Sync (Chrome Android)
+    // This makes the SW wake up periodically — even when browser is closed —
+    // to call /api/push/send and deliver push notifications.
+    try {
+      const reg = registration as any
+      if (reg.periodicSync) {
+        const status = await navigator.permissions.query({
+          name: 'periodic-background-sync' as any,
+        })
+        if (status.state === 'granted') {
+          await reg.periodicSync.register('habitlab-push-check', {
+            minInterval: 15 * 60 * 1000, // every 15 minutes minimum
+          })
+          console.log('[HabitLab] Periodic Background Sync registered (15 min)')
+        }
+      }
+    } catch {
+      // Periodic sync not supported — fallback to other methods
+    }
+
+    // Also register one-time background sync as fallback
+    try {
+      const reg = registration as any
+      if (reg.sync) {
+        await reg.sync.register('habitlab-push-check')
+      }
+    } catch {
+      // Background sync not supported
+    }
+
     return registration
   } catch (err) {
     console.warn('[HabitLab] Service Worker registration failed:', err)

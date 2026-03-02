@@ -17,6 +17,36 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
+// ─── Periodic Background Sync ─────────────────────────────────
+// This fires periodically (even when the website is completely closed)
+// on supported browsers (Chrome Android). It calls the server to check
+// if any reminders need to send push notifications.
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'habitlab-push-check') {
+    event.waitUntil(
+      fetch('/api/push/send')
+        .then((res) => res.json())
+        .then((data) => {
+          console.log('[SW] Periodic sync push check:', data)
+        })
+        .catch((err) => {
+          console.error('[SW] Periodic sync error:', err)
+        })
+    )
+  }
+})
+
+// ─── Regular Background Sync (one-time, fires when back online) ──
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'habitlab-push-check') {
+    event.waitUntil(
+      fetch('/api/push/send')
+        .then((res) => res.json())
+        .catch(() => {})
+    )
+  }
+})
+
 // ─── Web Push: fires even when the website is completely closed ───
 self.addEventListener('push', (event) => {
   let data = { title: 'HabitLab', body: 'Time to check your habits!', url: '/dashboard' }
