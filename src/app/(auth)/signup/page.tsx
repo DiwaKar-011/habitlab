@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff } from 'lucide-react'
 import { auth } from '@/lib/firebase'
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, GithubAuthProvider, GoogleAuthProvider, signInWithRedirect } from 'firebase/auth'
 import { upsertProfile, isUsernameTaken } from '@/lib/db'
 
 export default function SignUpPage() {
@@ -130,19 +130,12 @@ export default function SignUpPage() {
     setError('')
     try {
       const provider = new GithubAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      // Create profile without username — UsernameGate will prompt the user to choose one
-      try {
-        await upsertProfile({
-          id: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          avatar_url: result.user.photoURL || undefined,
-        })
-      } catch {}
-      router.push('/dashboard')
-      router.refresh()
+      await signInWithRedirect(auth, provider)
     } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/redirect-cached' || err?.message?.includes('redirect')) {
+        return
+      }
       setError(err?.message || 'GitHub sign-up failed.')
     }
   }
@@ -151,19 +144,12 @@ export default function SignUpPage() {
     setError('')
     try {
       const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      // Create profile without username — UsernameGate will prompt the user to choose one
-      try {
-        await upsertProfile({
-          id: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          avatar_url: result.user.photoURL || undefined,
-        })
-      } catch {}
-      router.push('/dashboard')
-      router.refresh()
+      await signInWithRedirect(auth, provider)
     } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/redirect-cached' || err?.message?.includes('redirect')) {
+        return
+      }
       setError(err?.message || 'Google sign-up failed.')
     }
   }

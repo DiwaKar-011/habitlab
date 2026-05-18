@@ -70,19 +70,12 @@ export default function SignInPage() {
     setError('')
     try {
       const provider = new GithubAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      // Ensure profile exists
-      try {
-        await upsertProfile({
-          id: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          avatar_url: result.user.photoURL || undefined,
-        })
-      } catch {}
-      router.push('/dashboard')
-      router.refresh()
+      await signInWithRedirect(auth, provider)
     } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/redirect-cached' || err?.message?.includes('redirect')) {
+        return
+      }
       setError(err?.message || 'GitHub sign-in failed.')
     }
   }
@@ -91,18 +84,12 @@ export default function SignInPage() {
     setError('')
     try {
       const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      try {
-        await upsertProfile({
-          id: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          avatar_url: result.user.photoURL || undefined,
-        })
-      } catch {}
-      router.push('/dashboard')
-      router.refresh()
+      await signInWithRedirect(auth, provider)
     } catch (err: any) {
+      const code = err?.code || ''
+      if (code === 'auth/redirect-cached' || err?.message?.includes('redirect')) {
+        return
+      }
       setError(err?.message || 'Google sign-in failed.')
     }
   }
