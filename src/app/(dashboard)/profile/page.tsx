@@ -916,7 +916,7 @@ export default function ProfilePage() {
                     if (!currentUser) throw new Error('Not signed in')
 
                     // Re-authenticate before deletion (Firebase requires recent auth)
-                    const providerIds = currentUser.providerData.map(p => p.providerId)
+                    const providerIds = currentUser.providerData.map((p: any) => p.providerId as string)
                     try {
                       if (providerIds.includes('google.com')) {
                         await reauthenticateWithPopup(currentUser, new GoogleAuthProvider())
