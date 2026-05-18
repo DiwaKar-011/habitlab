@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Beaker, Eye, EyeOff, UserCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase'
-import { signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, GithubAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, GithubAuthProvider, GoogleAuthProvider, signInWithRedirect } from 'firebase/auth'
 import { upsertProfile } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 
