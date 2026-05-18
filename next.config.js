@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  analytics: false,
+  experimental: {
+    instrumentationHook: false,
+  },
+  serverExternalPackages: ['firebase-admin'],
+}
 
 module.exports = nextConfig

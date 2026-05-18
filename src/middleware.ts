@@ -32,6 +32,20 @@ export async function middleware(req: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 
+  // Block Vercel telemetry tracking headers that may cause AI model errors
+  const vercelHeadersToRemove = [
+    'x-vercel-analytics-debug',
+    'x-vercel-cache',
+    'x-vercel-id',
+    'x-vercel-pt',
+    'x-vercel-sb',
+    'x-vercel-sp',
+    'x-vercel-trace',
+  ]
+  for (const h of vercelHeadersToRemove) {
+    response.headers.delete(h)
+  }
+
   // Rate limiting for API routes
   if (req.nextUrl.pathname.startsWith('/api/')) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown'
